@@ -5,15 +5,12 @@ import os
 
 app = Flask(__name__)
 
-# ---- Configuration ----
 CO_DOMAIN = "https://codeocean.allenneuraldynamics.org"
 CAPSULE_ID = "5b86cc0b-91fb-4ebd-8c1d-a604bf1b5359"
 
 # Secure: stored in Render environment variables
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
 
-
-# ---- Helper: create Code Ocean payload ----
 def build_payload(batch, workflow, fastq):
     return {
         "capsule_id": CAPSULE_ID,
@@ -45,7 +42,7 @@ def run_job():
 
     response = requests.post(
         f"{CO_DOMAIN}/api/v1/computations",
-        auth=HTTPBasicAuth(ACCESS_TOKEN, ""),  # cleaner auth
+        auth=HTTPBasicAuth(ACCESS_TOKEN, ""),
         json=payload
     )
 
