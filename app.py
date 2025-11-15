@@ -36,7 +36,7 @@ def run_job():
 
     response = requests.post(
         f"{CO_DOMAIN}/api/v1/computations",
-        auth=HTTPBasicAuth(ACCESS_TOKEN),
+        auth=HTTPBasicAuth(ACCESS_TOKEN, ""),
         json=payload
     )
 
