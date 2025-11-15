@@ -1,0 +1,56 @@
+from flask import Flask, request, jsonify
+import requests
+from requests.auth import HTTPBasicAuth
+import os
+
+app = Flask(__name__)
+
+# ---- Configuration ----
+CO_DOMAIN = "https://codeocean.allenneuraldynamics.org"
+CAPSULE_ID = "5b86cc0b-91fb-4ebd-8c1d-a604bf1b5359"
+
+# Secure: stored in Render environment variables
+ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
+
+
+# ---- Helper: create Code Ocean payload ----
+def build_payload(batch, workflow, fastq):
+    return {
+        "capsule_id": CAPSULE_ID,
+        "named_parameters": [
+            {"param_name": "workflow", "value": workflow},
+            {"param_name": "batch-name", "value": batch},
+            {"param_name": "fastq-name", "value": fastq},
+            {"param_name": "email", "value": "!BICore@alleninstitute.org"},
+            {"param_name": "dry-run", "value": "false"},
+            {"param_name": "debug", "value": "false"}
+        ]
+    }
+
+
+# ---- Route ----
+@app.route("/run-job")
+def run_job():
+    batch = request.args.get("batch_name")
+    workflow = request.args.get("workflow")
+    fastq = request.args.get("fastq_name")
+
+    if not batch or not workflow:
+        return jsonify({
+            "status": "error",
+            "message": "Missing required parameters: batch_name and workflow"
+        }), 400
+
+    payload = build_payload(batch, workflow, fastq)
+
+    response = requests.post(
+        f"{CO_DOMAIN}/api/v1/computations",
+        auth=HTTPBasicAuth(ACCESS_TOKEN, ""),  # cleaner auth
+        json=payload
+    )
+
+    return jsonify({
+        "status_code": response.status_code,
+        "response": response.json(),
+        "payload_sent": payload
+    })
