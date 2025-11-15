@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 CO_DOMAIN = "https://codeocean.allenneuraldynamics.org"
-CAPSULE_ID = "576015ec-10ec-45c1-a095-3ec2721feae3"
+CAPSULE_ID = "5b86cc0b-91fb-4ebd-8c1d-a604bf1b5359"
 
 # Secure: stored in Render environment variables
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
@@ -32,17 +32,11 @@ def run_job():
     workflow = request.args.get("workflow")
     fastq = request.args.get("fastq_name")
 
-    if not batch or not workflow:
-        return jsonify({
-            "status": "error",
-            "message": "Missing required parameters: batch_name and workflow"
-        }), 400
-
     payload = build_payload(batch, workflow, fastq)
 
     response = requests.post(
         f"{CO_DOMAIN}/api/v1/computations",
-        auth=HTTPBasicAuth(ACCESS_TOKEN, ""),
+        auth=HTTPBasicAuth(ACCESS_TOKEN),
         json=payload
     )
 
