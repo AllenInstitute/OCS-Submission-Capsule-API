@@ -21,7 +21,6 @@ def run_job():
 
     payload = {
         "capsule_id": CAPSULE_ID,
-        "version": True,
         "named_parameters": [
             {"param_name": "workflow", "value": workflow},
             {"param_name": "batch-name", "value": batch},
@@ -33,7 +32,7 @@ def run_job():
     }
 
     response = requests.post(
-        f"{CO_DOMAIN}/api/v1/computations",
+        f"{CO_DOMAIN}/api/v17/computations",
         auth=HTTPBasicAuth(ACCESS_TOKEN, ""),
         json=payload
     )
