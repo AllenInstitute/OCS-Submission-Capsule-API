@@ -11,9 +11,17 @@ CAPSULE_ID = "576015ec-10ec-45c1-a095-3ec2721feae3"
 # Secure: stored in Render environment variables
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
 
-def build_payload(batch, workflow, fastq):
-    return {
+
+# ---- Route ----
+@app.route("/run-job")
+def run_job():
+    batch = request.args.get("batch_name")
+    workflow = request.args.get("workflow")
+    fastq = request.args.get("fastq_name")
+
+    payload = {
         "capsule_id": CAPSULE_ID,
+        "version": True,
         "named_parameters": [
             {"param_name": "workflow", "value": workflow},
             {"param_name": "batch-name", "value": batch},
@@ -23,16 +31,6 @@ def build_payload(batch, workflow, fastq):
             {"param_name": "debug", "value": "false"}
         ]
     }
-
-
-# ---- Route ----
-@app.route("/run-job")
-def run_job():
-    batch = request.args.get("batch_name")
-    workflow = request.args.get("workflow")
-    fastq = request.args.get("fastq_name")
-
-    payload = build_payload(batch, workflow, fastq)
 
     response = requests.post(
         f"{CO_DOMAIN}/api/v1/computations",
