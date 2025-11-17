@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 CO_DOMAIN = "https://codeocean.allenneuraldynamics.org"
-CAPSULE_ID = "576015ec-10ec-45c1-a095-3ec2721feae3"
+CAPSULE_ID = "5b86cc0b-91fb-4ebd-8c1d-a604bf1b5359"
 
 # Secure: stored in Render environment variables
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
