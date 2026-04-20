@@ -162,6 +162,11 @@ def parse_args() -> argparse.Namespace:
         default="false",
         help="Run the LIMS audit each time an alignment command is executed (true/false, default: false)",
     )
+    parser.add_argument(
+        "--config",
+        default=CONFIG_PATH,
+        help=f"Path to a JSONC config file (default: {CONFIG_PATH})",
+    )
     return parser.parse_args()
 
 
@@ -191,7 +196,7 @@ def main() -> None:
     reject if batch_name_from_vendor and fastq_names both set
     dry_run = (args.dry_run == "true")
     init_connection_pool()
-    config = load_jsonc_config(CONFIG_PATH)
+    config = load_jsonc_config(args.config)
     if ocs_tracker_exporter: load_fastq_records_df_from_exporter(...)
     elif batch_name_from_vendor: load_fastq_records_df_from_batch(...)
     elif fastq_names: load_fastq_records_df_from_fastq_names(...)
@@ -218,7 +223,7 @@ def main() -> None:
     logger.info("Initializing database connection pool")
     running_jobs_db.init_connection_pool()
 
-    config = load_jsonc_config(CONFIG_PATH)
+    config = load_jsonc_config(args.config)
 
     if args.ocs_tracker_exporter:
         logger.info(
