@@ -1,0 +1,594 @@
+{
+  // Main configuration.
+  // Edit this file to add or change alignment and post-alignment commands.
+  //
+  // How to add a new alignment command:
+  // 1. Go to workflows.<MODALITY>.alignment_command_configs
+  // 2. Add a new command config object
+  // 3. Set match.library_preps and optional match.organisms
+  // 4. Set command and arguments
+  // 5. Put more specific command configs before more general command configs
+  //
+  // Argument values support these placeholders:
+  // - {reference_name}
+  // - {load_name}
+  // - {email}
+  // - {chemistry}
+  // - {probe_set}
+  // - {execution_vcpus}
+  "references": {
+    "human": {
+      "all": "human_10x_grch38_genome_star2.7.1a"
+    },
+    "mouse": {
+      "MTX": "mouse_10x_mm10_genome_star2.7.1a",
+      "RTX": "mouse_10x_mm10_genome_star2.7.1a",
+      "RFX": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1"
+    },
+    "macaque": {
+      "RTX": "macaque_ncbi_mmul10_genome_star2.7.1a-1",
+      "MTX": "macaque_ncbi_mmul10_genome_star2.7.1a"
+    },
+    "ferret": {
+      "all": "ferret_ncbi_asm1176430v1.1_genome_star2.7.1a"
+    },
+    "treeshrew": {
+      "all": "treeshrew_ncbi_tupchi-1-0_genome_star2.7.1a"
+    },
+    "rabbit": {
+      "all": "rabbit_ncbi_um-nzw-1.0_genome_star2.7.1a"
+    },
+    "pig": {
+      "all": "pig_ncbi_sscrofa11.1_genome_star2.7.1a"
+    },
+    "opossum": {
+      "all": "opossum_ncbi_ommondom1_genome.fixed_star2.7.1a"
+    },
+    "gorilla": {
+      "all": "gorilla_ncbi_kamilah-ggo-v0_genome_star2.7.1a"
+    },
+    "armadillo": {
+      "all": "armadillo_ncbi_mdasnov1-hap2_genome_star2-7-1a"
+    },
+    "rat": {
+      "all": "rat_ncbi_mratbn7.2_genome_star2.7.1a"
+    },
+    "galago": {
+      "all": "galago_ncbi_otogar3_genome_star2.7.1a-1"
+    },
+    "african-green-monkey": {
+      "all": "african-green-monkey_ncbi_vero-who-p1-0_genomefixed_star2.7.1a"
+    },
+    "south-american-squirrel-monkey": {
+      "all": "squirrel-monkey_ncbi_bcm.sbol.2.1_genome_star2.7.1a"
+    },
+    "marmoset": {
+      "all": "marmoset_ncbi_mcalja1.2.pat.x_genome_star2.7.1a"
+    },
+    "egyptian-fruit-bat": {
+      "all": "egyptian-fruit-bat_ncbi_mrouaeg1_genome.fixed_star2.7.1a"
+    },
+    "owl-monkey": {
+      "all": "owl-monkey_ncbi_anan-2-0_genome_star2.7.1a"
+    },
+    "chimp": {
+      "all": "chimp_ncbi_mpantro3-v11_genome.fixed_star2.7.1a"
+    },
+    "gray-mouse-lemur": {
+      "all": "gray-mouse-lemur_ncbi_mmur-3-0_genome_star2.7.1a"
+    },
+    "naked-mole-rat": {
+      "all": "naked-mole-rat_ncbi_hetgla-female-1-0_genome_star2.7.1a"
+    },
+    "cat": {
+      "all": "cat_ncbi_f-catus-fca126-mat1-0_genome_star2.7.1a"
+    },
+    "capuchin": {
+      "all": "capuchin_ncbi_gsc-monkey-1-0_genome_star2.7.1a"
+    },
+    "dog": {
+      "all": "dog_ncbi_uu-cfam-gsd-1-0_genome_star2.7.1a"
+    },
+    "arctic-ground-squirrel": {
+      "all": "arctic-ground-squirrel_ncbi_asm342692v1_genome_star2.7.1a"
+    },
+    "baboon": {
+      "all": "baboon_ncbi_panubis1-0_genome_star2.7.1a"
+    },
+    "harbor-porpoise": {
+      "MTX": "harbor-porpoise_ncbi_mphopho1-1_genome_star2.7.1a",
+      "RTX": "harbor-porpoise_ncbi_mphopho1-1_genome_cr-v8-0-0"
+    }
+  },
+  "probe_sets_by_organism": {
+    "mouse": {
+      "10xV4_FX4": "mouse_10x_mm10-egfp-mscarlet-vbc_chromium_v1.1_cellflex_probe_set",
+      "10xV4_FX16": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set"
+    }
+  },
+  "chemistry_by_library_prep": {
+    "10xV3.1D": "SC3Pv3",
+    "10xRseq_Mult_noATAC": "ARC-v1",
+    "10xV3.1_HT": "SC3Pv3HT",
+    "10xV4": "SC3Pv4",
+    "10Xv2": "SC3Pv2",
+    "10Xv3.1": "SC3Pv3"
+  },
+  "workflows": {
+    "MTX": {
+      "alignment_command_configs": [
+        {
+          "name": "default",
+          "match": {
+            "library_preps": [
+              "*"
+            ],
+            "organisms": [
+              "*"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-arc"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "cellranger-arc"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 180
+        }
+      ],
+      "post_alignment": {
+        "command": [
+          "ocs",
+          "fastqs",
+          "postalign",
+          "tenx-arc"
+        ],
+        "arguments": [
+          {
+            "flag": "--asset-name",
+            "value": "10x_multiome_qc"
+          },
+          {
+            "flag": "--asset-tag",
+            "value": "1.0.0"
+          },
+          {
+            "flag": "--load-names",
+            "value": "{load_name}"
+          },
+          {
+            "flag": "--notify-on",
+            "value": "FAILED"
+          },
+          {
+            "flag": "--notify",
+            "value": "{email}"
+          }
+        ],
+        "spacing": 60
+      }
+    },
+    "RTX": {
+      "alignment_command_configs": [
+        {
+          "name": "standard",
+          "match": {
+            "library_preps": [
+              "10xV3.1D",
+              "10xRseq_Mult_noATAC",
+              "10xV3.1_HT",
+              "10Xv3.1",
+              "10Xv2"
+            ],
+            "organisms": [
+              "*"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-rnaseq"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "cellranger-rnaseq"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "latest"
+            },
+            {
+              "flag": "--cellranger-addopts",
+              "value": "--chemistry {chemistry} --include-introns"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 180
+        },
+        {
+          "name": "multi",
+          "match": {
+            "library_preps": [
+              "10xV3.1_HT_CP",
+              "10xV3.1_HT_CP-BC"
+            ],
+            "organisms": [
+              "*"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-rnaseq-multi"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "cellranger-multi"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "latest"
+            },
+            {
+              "flag": "--cellranger-addopts",
+              "value": "--include-introns"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 180
+        },
+        {
+          "name": "10xV4_PX",
+          "match": {
+            "library_preps": [
+              "10xV4_PX"
+            ],
+            "organisms": [
+              "*"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-rnaseq-multi"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "cellranger-multi"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "9.0.1"
+            },
+            {
+              "flag": "--cellranger-addopts",
+              "value": "--create-bam=TRUE"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 180
+        },
+        {
+          "name": "10xV4",
+          "match": {
+            "library_preps": [
+              "10xV4"
+            ],
+            "organisms": [
+              "*"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-rnaseq"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "cellranger-rnaseq"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "8.0.1"
+            },
+            {
+              "flag": "--cellranger-addopts",
+              "value": "--chemistry {chemistry}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 180
+        },
+        {
+          "name": "10xV4_FX4",
+          "match": {
+            "library_preps": [
+              "10xV4_FX4",
+              "10xV4_FX4-cps"
+            ],
+            "organisms": [
+              "*"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-rnaseq-multi"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "cellranger-multi"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "9.0.1"
+            },
+            {
+              "flag": "--cellflex-probe-set-name",
+              "value": "{probe_set}"
+            },
+            {
+              "flag": "--cellranger-addopts",
+              "value": "--create-bam=true"
+            },
+            {
+              "flag": "--execution-vcpus",
+              "value": "{execution_vcpus}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "execution_vcpus": 180,
+          "spacing": 180
+        }
+      ],
+      "post_alignment": {
+        "command": [
+          "ocs",
+          "fastqs",
+          "postalign",
+          "tenx-rnaseq"
+        ],
+        "arguments": [
+          {
+            "flag": "--asset-name",
+            "value": "tenx_rnaseq_qc"
+          },
+          {
+            "flag": "--asset-tag",
+            "value": "latest"
+          },
+          {
+            "flag": "--load-names",
+            "value": "{load_name}"
+          },
+          {
+            "flag": "--notify-on",
+            "value": "FAILED"
+          },
+          {
+            "flag": "--notify",
+            "value": "{email}"
+          }
+        ],
+        "spacing": 60
+      }
+    },
+    "RFX": {
+      "alignment_command_configs": [
+        {
+          "name": "10xV4_FX16",
+          "match": {
+            "library_preps": [
+              "10xV4_FX16"
+            ],
+            "organisms": [
+              "*"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-rnaseq-multi"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "cellranger-multi"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "9.0.1"
+            },
+            {
+              "flag": "--cellflex-probe-set-name",
+              "value": "{probe_set}"
+            },
+            {
+              "flag": "--cellranger-addopts",
+              "value": "--create-bam=true"
+            },
+            {
+              "flag": "--execution-vcpus",
+              "value": "{execution_vcpus}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "execution_vcpus": 180,
+          "spacing": 180
+        }
+      ],
+      "post_alignment": {
+        "command": [
+          "ocs",
+          "fastqs",
+          "postalign",
+          "tenx-rnaseq"
+        ],
+        "arguments": [
+          {
+            "flag": "--asset-name",
+            "value": "tenx_rnaseq_qc"
+          },
+          {
+            "flag": "--asset-tag",
+            "value": "latest"
+          },
+          {
+            "flag": "--load-names",
+            "value": "{load_name}"
+          },
+          {
+            "flag": "--notify-on",
+            "value": "FAILED"
+          },
+          {
+            "flag": "--notify",
+            "value": "{email}"
+          }
+        ],
+        "spacing": 60
+      }
+    }
+  },
+  "job_settings": {
+    "limit": 100
+  },
+  "status_mappings": {
+    "ingest_complete": [
+      "INGEST_COMPLETE",
+      "COMPLETED",
+      "ARCHIVED"
+    ],
+    "alignment_complete": [
+      "COMPLETED",
+      "ARCHIVED"
+    ],
+    "post_alignment_complete": [
+      "COMPLETED",
+      "ARCHIVED"
+    ]
+  }
+}
