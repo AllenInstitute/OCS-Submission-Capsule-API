@@ -29,42 +29,13 @@ from .fetch_fastq_ocs_records import (
     load_fastq_records_df_from_exporter,
     load_fastq_records_df_from_fastq_names,
 )
-from .notifications import send_command_summary_email
+from .notifications import send_audit_email, send_command_summary_email
 
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = str(Path(__file__).resolve().parent / "config.jsonc")
-DataManifestPath = Path("/results") if Path("/results").is_dir() else Path(".")
-
-def write_data_manifest(
-    ocs_job_commands_df: pd.DataFrame, manifest_path: str
-) -> None:
-    """
-    Write the OCS job commands dataframe to a JSON file at ``manifest_path``.
-
-    Parameters
-    ----------
-    ocs_job_commands_df
-        Dataframe of OCS job command records, typically the return value of
-        ``execute_ocs_submission_commands``.
-    manifest_path
-        Destination path for the manifest file. The parent directory is created if missing.
-
-    Return
-    ----------
-    None
-
-    Pseudo code
-    ----------
-    ensure the parent directory exists
-    write ocs_job_commands_df as JSON records with indent=2
-    log the path that was written
-    """
-    manifest_file = Path(manifest_path)
-    manifest_file.parent.mkdir(parents=True, exist_ok=True)
-    ocs_job_commands_df.to_json(manifest_file, orient="records", indent=2)
-    logger.info("Wrote data manifest to %s", manifest_file)
-
+DATA_MANIFEST_DIR = Path("/results") if Path("/results").is_dir() else Path(".")
+DATA_MANIFEST_PATH = DATA_MANIFEST_DIR / "ocs_job_commands_manifest.json"
 
 def load_jsonc_config(config_path: str) -> dict:
     """
@@ -203,10 +174,11 @@ def main() -> None:
     if fastq_records_df empty: log and return
     log_fastq_status_summaries(...)
     ocs_job_commands_df = build_ocs_job_submission_command(...)
+    if audit: for each unique batch_name_from_vendor in ocs_job_commands_df: run_audit(batch_name)
     ocs_job_commands_df = execute_ocs_submission_commands(
-        ocs_job_commands_df, job_limit, audit
+        ocs_job_commands_df, job_limit
     )
-    write_data_manifest(ocs_job_commands_df, DATA_MANIFEST_PATH)
+    ocs_job_commands_df.to_json(DATA_MANIFEST_PATH, orient="records", indent=2)
     if not dry_run: send_command_summary_email(...)
     log completion
     """
@@ -264,16 +236,25 @@ def main() -> None:
         dry_run=dry_run,
     )
 
+    if args.audit == "true":
+        unique_batch_names = [
+            batch_name
+            for batch_name in ocs_job_commands_df["batch_name_from_vendor"]
+            .dropna()
+            .unique()
+            if batch_name
+        ]
+        for batch_name in unique_batch_names:
+            logger.info("Running audit for batch name from vendor: %s", batch_name)
+            send_audit_email(batch_name, args.email)
+
     ocs_job_commands_df = execute_ocs_submission_commands(
         ocs_job_commands_df=ocs_job_commands_df,
         job_limit=config["job_settings"]["limit"],
-        audit=args.audit == "true",
     )
 
-    write_data_manifest(
-        ocs_job_commands_df=ocs_job_commands_df,
-        manifest_path=DATA_MANIFEST_PATH,
-    )
+    ocs_job_commands_df.to_json(DATA_MANIFEST_PATH, orient="records", indent=2)
+    logger.info("Wrote data manifest to %s", DATA_MANIFEST_PATH)
 
     if not dry_run:
         send_command_summary_email(

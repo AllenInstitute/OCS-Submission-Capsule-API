@@ -7,7 +7,6 @@ from datetime import datetime
 import pandas as pd
 
 from . import running_jobs_db
-from .audit import run_audit
 from .ocs_cli import (
     can_submit_job,
     execute_ocs_cmd,
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def execute_ocs_submission_commands(
-    ocs_job_commands_df: pd.DataFrame, job_limit: int, audit: bool = False
+    ocs_job_commands_df: pd.DataFrame, job_limit: int
 ) -> pd.DataFrame:
     """
     Submit the OCS commands for rows marked ``should_execute``.
@@ -35,8 +34,6 @@ def execute_ocs_submission_commands(
         Planned OCS job command rows; mutated in place with execution results.
     job_limit
         Maximum number of in-progress alignment plus post-alignment demands allowed.
-    audit
-        When True, run the LIMS audit each time an alignment command is executed.
 
     Return
     ----------
@@ -48,8 +45,6 @@ def execute_ocs_submission_commands(
     for each (row, stage) where {prefix}_should_execute:
         if not can_submit_job(job_limit, dry_run): flip {prefix}_should_execute False; continue
         set {prefix}_executed_at
-        if audit and stage == alignment and batch_name_from_vendor not in audited_batches:
-            run_audit(batch_name_from_vendor); audited_batches.add(batch_name_from_vendor)
         if dry_run: log command; {prefix}_submission_success = True; continue
         try: run execute_ocs_cmd; parse demand id; update DB on success
         except: mark failure
@@ -65,8 +60,6 @@ def execute_ocs_submission_commands(
         if ocs_job_commands_df.at[record_index, f"{prefix}_should_execute"]
     ]
 
-    audited_batches: set[str] = set()
-
     for position, (record_index, job_type, prefix) in enumerate(executable):
         dry_run = bool(ocs_job_commands_df.at[record_index, "dry_run"])
         fastq_name = ocs_job_commands_df.at[record_index, "fastq_name"]
@@ -80,18 +73,6 @@ def execute_ocs_submission_commands(
         ocs_job_commands_df.at[record_index, f"{prefix}_executed_at"] = datetime.now().strftime(
             "%Y-%m-%d %H:%M:%S"
         )
-
-        if audit and job_type == "alignment":
-            batch_name_from_vendor = ocs_job_commands_df.at[
-                record_index, "batch_name_from_vendor"
-            ]
-            if batch_name_from_vendor and batch_name_from_vendor not in audited_batches:
-                logger.info(
-                    "Running audit for batch name from vendor: %s",
-                    batch_name_from_vendor,
-                )
-                run_audit(batch_name_from_vendor)
-                audited_batches.add(batch_name_from_vendor)
 
         if dry_run:
             logger.info("Dry run %s for %s: %s", job_type, fastq_name, command)

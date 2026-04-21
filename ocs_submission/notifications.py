@@ -10,6 +10,8 @@ import pandas as pd
 from codeocean import CodeOcean
 from codeocean.computation import NamedRunParam, RunParams
 
+from .audit import run_audit
+
 logger = logging.getLogger(__name__)
 
 STAGES = [("alignment", "alignment"), ("postqc", "post_alignment")]
@@ -234,5 +236,38 @@ def send_command_summary_email(
 
     body_parts.append("")
     body_parts.append("This is an automated notification from the OCS Submission Capsule")
+
+    run_email_capsule(subject, "\n".join(body_parts), notify_email)
+
+
+def send_audit_email(batch_name: str, notify_email: str) -> None:
+    """
+    Run the LIMS audit for ``batch_name`` and email the CSVs inline to ``notify_email``.
+
+    The Code Ocean email capsule accepts only ``to``/``subject``/``body``, so the two CSVs
+    (missing-data report and full LIMS pull) are embedded in the email body as text. Does
+    nothing when ``notify_email`` is empty.
+    """
+    if not notify_email:
+        logger.info(
+            "Skipping audit email for %s: no notify email provided.", batch_name
+        )
+        return
+
+    lims_data, report, modality = run_audit(batch_name)
+
+    subject = f"LIMS Audit - Batch: {batch_name}"
+    body_parts = [
+        f"LIMS Audit for Batch: {batch_name}",
+        f"Modality: {modality}",
+        f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        f"=== Missing Data Report ({batch_name}_{modality}_missing_data.csv) ===",
+        report.to_csv(index=False),
+        f"=== LIMS Data Pull ({batch_name}_lims_pull.csv) ===",
+        lims_data.to_csv(index=False),
+        "",
+        "This is an automated notification from the OCS Submission Capsule",
+    ]
 
     run_email_capsule(subject, "\n".join(body_parts), notify_email)

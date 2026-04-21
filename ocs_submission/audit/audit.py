@@ -125,7 +125,12 @@ class MTXAuditor(Auditor):
         super().__init__(rules, identifiers)
 
 
-def run_audit(batch_name: str) -> None:
+def run_audit(batch_name: str) -> tuple[pd.DataFrame, pd.DataFrame, str]:
+    """Pull LIMS data for ``batch_name`` and build the missing-data report.
+
+    Returns ``(lims_data, report, modality)``. The caller decides what to do with the
+    CSVs (e.g. email them).
+    """
     prefix = batch_name.split("-")[0][:3]
 
     sql_file = f"{script_dir}/lims_rtx_ocs.sql" if prefix in ("RTX", "10X") else f"{script_dir}/lims_mtx_ocs.sql"
@@ -151,12 +156,9 @@ def run_audit(batch_name: str) -> None:
     lims_data = pd.DataFrame(rows, columns=columns)
     report = auditor.generate_report(lims_data)
 
-    out_dir = f"{script_dir}/out/{batch_name}"
-    os.makedirs(out_dir, exist_ok=True)
-
-    lims_data.to_csv(f"{out_dir}/{batch_name}_lims_pull.csv", index=False)
-    report.to_csv(f"{out_dir}/{batch_name}_{modality}_missing_data.csv", index=False)
+    return lims_data, report, modality
 
 
 if __name__ == "__main__":
-    run_audit(sys.argv[1])
+    lims_data, report, modality = run_audit(sys.argv[1])
+    print(report.to_csv(index=False))
