@@ -36,10 +36,10 @@ ocs-submission \
   --audit true
 ```
 
-You can also invoke it directly during development:
+You can also invoke it as a module (from the repo root, with the package on `PYTHONPATH`):
 
 ```bash
-python -m ocs_submission.main --modality MTX --batch-name-from-vendor MTX-22048 --dry-run true
+python -m ocs_submission --modality MTX --batch-name-from-vendor MTX-22048 --dry-run true
 ```
 
 ### CLI flags
@@ -54,12 +54,13 @@ python -m ocs_submission.main --modality MTX --batch-name-from-vendor MTX-22048 
 | `--email` / `-e`            |          | Override notification email                                                  |
 | `--dry-run`                 |          | `true` / `false` (default `false`) — log commands without executing          |
 | `--audit`                   |          | `true` / `false` (default `false`) — run LIMS audit for each alignment exec  |
+| `--config`                  |          | Path to JSONC config (default: bundled `ocs_submission/config.jsonc`)        |
 
 Exactly one of `--ocs-tracker-exporter`, `--batch-name-from-vendor`, or `--fastq-names` is required.
 
 ## Outputs
 
-- **Data manifest**: `./data_manifest.json` (one row per FASTQ with `alignment_*` and `post_alignment_*` columns).
+- **Data manifest**: `./.data_manifest.json` (one row per FASTQ with `alignment_*` and `post_alignment_*` columns).
 - **Audit CSVs** (when `--audit true`): `ocs_submission/audit/out/<batch_name>/`.
 
 ## Package layout

@@ -41,7 +41,7 @@ def write_data_manifest(
     ocs_job_commands_df: pd.DataFrame, manifest_path: str
 ) -> None:
     """
-    Write the OCS job commands dataframe to a JSON manifest in the results folder.
+    Write the OCS job commands dataframe to a JSON file at ``manifest_path``.
 
     Parameters
     ----------
@@ -120,7 +120,7 @@ def parse_args() -> argparse.Namespace:
     ----------
     build ArgumentParser("OCS Submission Capsule")
     add --ocs-tracker-exporter, --modality (required), --batch-name-from-vendor,
-         --fastq-names, --force-submission, --email, --dry-run, --audit
+         --fastq-names, --force-submission, --email, --dry-run, --audit, --config
     return parser.parse_args()
     """
     parser = argparse.ArgumentParser(description="OCS Submission Capsule")
@@ -204,7 +204,9 @@ def main() -> None:
     if fastq_records_df empty: log and return
     log_fastq_status_summaries(...)
     ocs_job_commands_df = build_ocs_job_submission_command(...)
-    ocs_job_commands_df = execute_ocs_submission_commands(ocs_job_commands_df, job_limit)
+    ocs_job_commands_df = execute_ocs_submission_commands(
+        ocs_job_commands_df, job_limit, audit
+    )
     write_data_manifest(ocs_job_commands_df, DATA_MANIFEST_PATH)
     if not dry_run: send_command_summary_email(...)
     log completion
