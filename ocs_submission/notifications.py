@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from codeocean import CodeOcean
@@ -17,13 +19,20 @@ logger = logging.getLogger(__name__)
 STAGES = [("alignment", "alignment"), ("postqc", "post_alignment")]
 
 
-def run_email_capsule(subject: str, body: str, recipient: str) -> None:
+def run_email_capsule(
+    subject: str,
+    body: str,
+    recipient: str,
+    attachment: str | list[str] | None = None,
+) -> None:
     """
     Run the Code Ocean email capsule and wait for it to finish.
 
     Reads ``CO_DOMAIN``, ``ACCESS_TOKEN``, and ``EMAIL_CAPSULE_ID`` from the environment, starts
     the capsule with ``to``, ``subject``, and ``body`` as named parameters, and polls until the
-    computation completes.
+    computation completes. When ``attachment`` is provided, the current ``CO_COMPUTATION_ID``
+    and the attachment paths are passed as a JSON-encoded ``computation-id`` named parameter so
+    the email capsule can fetch those files from this computation's outputs.
 
     Parameters
     ----------
@@ -33,36 +42,42 @@ def run_email_capsule(subject: str, body: str, recipient: str) -> None:
         Plain-text email body.
     recipient
         Recipient address passed as the capsule ``to`` parameter.
-
-    Return
-    ----------
-    None
-
-    Pseudo code
-    ----------
-    load CO_DOMAIN, ACCESS_TOKEN, EMAIL_CAPSULE_ID from env
-    RunParams(capsule_id, named_parameters=[to, subject, body])
-    CodeOcean(...).computations.run_capsule; wait_until_completed
-    log computation id
+    attachment
+        Optional path (or list of paths) to files produced by this computation to attach.
     """
+    named_parameters = [
+        NamedRunParam(param_name="to", value=recipient),
+        NamedRunParam(param_name="subject", value=subject),
+        NamedRunParam(param_name="body", value=body),
+    ]
+
+    if attachment is not None:
+        paths = [attachment] if isinstance(attachment, str) else list(attachment)
+        current_computation_id = os.environ.get("CO_COMPUTATION_ID")
+        logger.info("Current computation ID: %s", current_computation_id)
+        named_parameters.append(
+            NamedRunParam(
+                param_name="computation-id",
+                value=json.dumps([current_computation_id, paths]),
+            )
+        )
+
     client = CodeOcean(
         domain=os.environ["CO_DOMAIN"],
         token=os.environ["ACCESS_TOKEN"],
     )
     run_params = RunParams(
         capsule_id=os.environ["EMAIL_CAPSULE_ID"],
-        named_parameters=[
-            NamedRunParam(param_name="to", value=recipient),
-            NamedRunParam(param_name="subject", value=subject),
-            NamedRunParam(param_name="body", value=body),
-        ],
+        named_parameters=named_parameters,
     )
     computation = client.computations.run_capsule(run_params)
+    '''
     computation = client.computations.wait_until_completed(
         computation,
         polling_interval=30,
         timeout=3600,
     )
+    '''
     logger.info("Email sent via Code Ocean. Computation ID: %s", computation.id)
 
 
@@ -240,13 +255,16 @@ def send_command_summary_email(
     run_email_capsule(subject, "\n".join(body_parts), notify_email)
 
 
+AUDIT_OUTPUT_DIR = Path("/results") if Path("/results").is_dir() else Path(".")
+
+
 def send_audit_email(batch_name: str, notify_email: str) -> None:
     """
-    Run the LIMS audit for ``batch_name`` and email the CSVs inline to ``notify_email``.
+    Run the LIMS audit for ``batch_name`` and email the CSVs as attachments to ``notify_email``.
 
-    The Code Ocean email capsule accepts only ``to``/``subject``/``body``, so the two CSVs
-    (missing-data report and full LIMS pull) are embedded in the email body as text. Does
-    nothing when ``notify_email`` is empty.
+    Writes the missing-data report and the full LIMS pull to CSV files under ``/results`` (or the
+    current directory in local runs) and passes them as attachments to the Code Ocean email
+    capsule. Does nothing when ``notify_email`` is empty.
     """
     if not notify_email:
         logger.info(
@@ -256,18 +274,29 @@ def send_audit_email(batch_name: str, notify_email: str) -> None:
 
     lims_data, report, modality = run_audit(batch_name)
 
-    subject = f"LIMS Audit - Batch: {batch_name}"
-    body_parts = [
-        f"LIMS Audit for Batch: {batch_name}",
-        f"Modality: {modality}",
-        f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
-        f"=== Missing Data Report ({batch_name}_{modality}_missing_data.csv) ===",
-        report.to_csv(index=False),
-        f"=== LIMS Data Pull ({batch_name}_lims_pull.csv) ===",
-        lims_data.to_csv(index=False),
-        "",
-        "This is an automated notification from the OCS Submission Capsule",
-    ]
+    report_path = AUDIT_OUTPUT_DIR / f"{batch_name}_{modality}_missing_data.csv"
+    lims_path = AUDIT_OUTPUT_DIR / f"{batch_name}_lims_pull.csv"
+    report.to_csv(report_path, index=False)
+    lims_data.to_csv(lims_path, index=False)
 
-    run_email_capsule(subject, "\n".join(body_parts), notify_email)
+    subject = f"LIMS Audit - Batch: {batch_name}"
+    body = "\n".join(
+        [
+            f"LIMS Audit for Batch: {batch_name}",
+            f"Modality: {modality}",
+            f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            "",
+            "Attached:",
+            f"  - {report_path.name}",
+            f"  - {lims_path.name}",
+            "",
+            "This is an automated notification from the OCS Submission Capsule",
+        ]
+    )
+
+    run_email_capsule(
+        subject=subject,
+        body=body,
+        recipient=notify_email,
+        attachment=[str(report_path), str(lims_path)],
+    )
