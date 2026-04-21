@@ -22,14 +22,14 @@ import pandas as pd
 
 from . import running_jobs_db
 from .ocs_command_builder import build_ocs_job_submission_command
-from .execution import execute_ocs_submission_commands
-from .fetch_fastq_ocs_records import (
+from .fastq_info_fetcher import (
     log_fastq_status_summaries,
     load_fastq_records_df_from_batch,
     load_fastq_records_df_from_exporter,
     load_fastq_records_df_from_fastq_names,
 )
-from .notifications import send_audit_email, send_command_summary_email
+from .ocs_cli import execute_ocs_submission_commands
+from .emails import send_audit_email, send_command_summary_email
 
 logger = logging.getLogger(__name__)
 

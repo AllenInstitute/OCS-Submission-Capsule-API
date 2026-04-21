@@ -118,7 +118,7 @@ def _stage_outcome(record, prefix: str) -> dict | None:
         "command": getattr(record, f"{prefix}_command"),
         "demand_id": getattr(record, f"{prefix}_demand_id"),
         "error_message": getattr(record, f"{prefix}_error_message") or "Unknown error",
-        "output": getattr(record, f"{prefix}_output") or "No output",
+        "output": getattr(record, f"{prefix}_output", None) or "No output",
     }
 
 

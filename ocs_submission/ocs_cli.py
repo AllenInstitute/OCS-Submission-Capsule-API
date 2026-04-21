@@ -3,9 +3,13 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+import time
+from datetime import datetime
 from typing import Any
 
 import pandas as pd
+
+from . import running_jobs_db
 
 logger = logging.getLogger(__name__)
 
@@ -426,3 +430,77 @@ def query_metadata(
         lambda studies: "+".join(studies) if isinstance(studies, list) else str(studies)
     )
     return metadata_df.set_index("fastq_name", drop=False)
+
+
+def execute_ocs_submission_commands(
+    ocs_job_commands_df: pd.DataFrame, job_limit: int
+) -> pd.DataFrame:
+    """Submit planned OCS commands for rows marked should_execute."""
+    stages = [("alignment", "alignment"), ("postqc", "post_alignment")]
+
+    executable = [
+        (record_index, job_type, prefix)
+        for record_index in ocs_job_commands_df.index
+        for job_type, prefix in stages
+        if ocs_job_commands_df.at[record_index, f"{prefix}_should_execute"]
+    ]
+
+    for position, (record_index, job_type, prefix) in enumerate(executable):
+        dry_run = bool(ocs_job_commands_df.at[record_index, "dry_run"])
+        fastq_name = ocs_job_commands_df.at[record_index, "fastq_name"]
+        command = ocs_job_commands_df.at[record_index, f"{prefix}_command"]
+        command_args = ocs_job_commands_df.at[record_index, f"{prefix}_command_args"]
+
+        if not can_submit_job(job_limit=job_limit, dry_run=dry_run):
+            ocs_job_commands_df.at[record_index, f"{prefix}_should_execute"] = False
+            continue
+
+        if dry_run:
+            logger.info("Dry run %s for %s: %s", job_type, fastq_name, command)
+            continue
+
+        ocs_job_commands_df.at[record_index, f"{prefix}_executed_at"] = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        logger.info("Submitting %s for %s: %s", job_type, fastq_name, command)
+
+        try:
+            result = execute_ocs_cmd(command_args)
+            output = result.stdout
+
+            demand_id, submission_success = extract_demand_id_from_output(output)
+            ocs_job_commands_df.at[record_index, f"{prefix}_demand_id"] = demand_id
+            ocs_job_commands_df.at[record_index, f"{prefix}_submission_success"] = (
+                submission_success
+            )
+
+            if submission_success and demand_id:
+                running_jobs_db.add_job(
+                    fastq_name=fastq_name,
+                    job_type=job_type,
+                    command=command,
+                    demand_id=demand_id,
+                    batch_name_from_vendor=ocs_job_commands_df.at[
+                        record_index, "batch_name_from_vendor"
+                    ],
+                )
+                logger.info("Job submitted successfully - Demand ID: %s", demand_id)
+            else:
+                ocs_job_commands_df.at[record_index, f"{prefix}_error_message"] = (
+                    "Job submission failed"
+                )
+                logger.error("Job submission failed")
+        except Exception as error:
+            ocs_job_commands_df.at[record_index, f"{prefix}_submission_success"] = False
+            ocs_job_commands_df.at[record_index, f"{prefix}_error_message"] = (
+                f"Command execution failed: {error}"
+            )
+            logger.error("Command execution failed: %s", error)
+
+        is_last_executable = position == len(executable) - 1
+        spacing = ocs_job_commands_df.at[record_index, f"{prefix}_spacing"]
+        if not is_last_executable and spacing:
+            time.sleep(spacing)
+
+    return ocs_job_commands_df

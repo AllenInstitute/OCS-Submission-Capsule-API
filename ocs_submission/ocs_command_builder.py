@@ -23,7 +23,6 @@ COMMAND_RECORD_COLUMNS = [
     "alignment_demand_id",
     "alignment_submission_success",
     "alignment_error_message",
-    "alignment_output",
     "alignment_executed_at",
     "post_alignment_should_execute",
     "post_alignment_command_args",
@@ -32,7 +31,6 @@ COMMAND_RECORD_COLUMNS = [
     "post_alignment_demand_id",
     "post_alignment_submission_success",
     "post_alignment_error_message",
-    "post_alignment_output",
     "post_alignment_executed_at",
 ]
 
@@ -256,7 +254,6 @@ def build_alignment_job_command_record(
         "alignment_demand_id": None,
         "alignment_submission_success": None,
         "alignment_error_message": None,
-        "alignment_output": None,
         "alignment_executed_at": None,
     }
 
@@ -348,7 +345,6 @@ def build_post_alignment_job_command_record(
         "post_alignment_demand_id": None,
         "post_alignment_submission_success": None,
         "post_alignment_error_message": None,
-        "post_alignment_output": None,
         "post_alignment_executed_at": None,
     }
 
