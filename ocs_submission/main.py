@@ -34,8 +34,7 @@ from .notifications import send_command_summary_email
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = str(Path(__file__).resolve().parent / "config.jsonc")
-DATA_MANIFEST_PATH = ".data_manifest.json"
-
+DataManifestPath = Path("/results") if Path("/results").is_dir() else Path(".")
 
 def write_data_manifest(
     ocs_job_commands_df: pd.DataFrame, manifest_path: str
