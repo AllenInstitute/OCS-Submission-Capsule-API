@@ -48,7 +48,8 @@ def execute_ocs_submission_commands(
     for each (row, stage) where {prefix}_should_execute:
         if not can_submit_job(job_limit, dry_run): flip {prefix}_should_execute False; continue
         set {prefix}_executed_at
-        if audit and stage == alignment: run_audit(batch_name_from_vendor)
+        if audit and stage == alignment and batch_name_from_vendor not in audited_batches:
+            run_audit(batch_name_from_vendor); audited_batches.add(batch_name_from_vendor)
         if dry_run: log command; {prefix}_submission_success = True; continue
         try: run execute_ocs_cmd; parse demand id; update DB on success
         except: mark failure
@@ -63,6 +64,8 @@ def execute_ocs_submission_commands(
         for job_type, prefix in stages
         if ocs_job_commands_df.at[record_index, f"{prefix}_should_execute"]
     ]
+
+    audited_batches: set[str] = set()
 
     for position, (record_index, job_type, prefix) in enumerate(executable):
         dry_run = bool(ocs_job_commands_df.at[record_index, "dry_run"])
@@ -82,8 +85,13 @@ def execute_ocs_submission_commands(
             batch_name_from_vendor = ocs_job_commands_df.at[
                 record_index, "batch_name_from_vendor"
             ]
-            logger.info("Running audit for batch %s", batch_name_from_vendor)
-            run_audit(batch_name_from_vendor)
+            if batch_name_from_vendor and batch_name_from_vendor not in audited_batches:
+                logger.info(
+                    "Running audit for batch name from vendor: %s",
+                    batch_name_from_vendor,
+                )
+                run_audit(batch_name_from_vendor)
+                audited_batches.add(batch_name_from_vendor)
 
         if dry_run:
             logger.info("Dry run %s for %s: %s", job_type, fastq_name, command)
