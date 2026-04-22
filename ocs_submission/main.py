@@ -7,13 +7,6 @@ optionally submits jobs to OCS, and sends email summaries.
 import argparse
 import logging
 import sys
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    stream=sys.stdout,
-)
-
 import json
 import re
 from pathlib import Path
@@ -30,6 +23,12 @@ from .fastq_info_fetcher import (
 )
 from .ocs_cli import execute_ocs_submission_commands
 from .emails import send_audit_email, send_command_summary_email
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    stream=sys.stdout,
+)
 
 logger = logging.getLogger(__name__)
 
