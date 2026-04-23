@@ -88,7 +88,7 @@ class RTXAuditor(Auditor):
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
-                tf_values=["UNKNOWN", "Present"]
+                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, does not fail audit)", "Present"]
             ),
             Rule(
                 ["facs_population_plan", "age", "sex", "sample_name", "load_name", "studies", "roi"],
@@ -115,7 +115,7 @@ class MTXAuditor(Auditor):
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
-                tf_values=["UNKNOWN", "passing"]
+                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, does not fail audit)", "Present"]
             ),
             Rule(
                 ["facs_population_plan", "age", "sex", "sample_name", "load_name", "studies", "roi"],
