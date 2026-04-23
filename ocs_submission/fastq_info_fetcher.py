@@ -29,7 +29,7 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     """
     Load FASTQ records from an OCS Tracker exporter CSV.
 
-    The exporter already has all the fields the rest of the pipeline expects, so this helper
+    The ocs tracker exports already has all the fields the rest of the pipeline expects, so this helper
     mostly renames columns to match ``FASTQ_RECORD_COLUMNS``. When the exporter is missing
     ``Batch Name From Vendor``, the value is filled in by looking up each FASTQ on OCS.
 
@@ -203,16 +203,16 @@ def check_all_fastq_stage_status(
         "post_alignment_complete"
     ]
     fastq_records_df = fastq_records_df.copy()
-    batch_name_from_vendor = fastq_records_df["batch_name_from_vendor"].dropna().unique()
+    unique_batch_names_from_vendor = fastq_records_df["batch_name_from_vendor"].dropna().unique()
     ingest_entries = {}
     align_entries = {}
     post_align_entries = {}
 
-    if len(batch_name_from_vendor) == 1:
-        batch_name = batch_name_from_vendor[0]
-        ingest_entries = get_latest_results("ingest", batch_name_from_vendor=batch_name)
-        align_entries = get_latest_results("align", batch_name_from_vendor=batch_name)
-        post_align_entries = get_latest_results("post-align", batch_name_from_vendor=batch_name)
+    if len(unique_batch_names_from_vendor) == 1:
+        batch_name_from_vendor = unique_batch_names_from_vendor[0]
+        ingest_entries = get_latest_results("ingest", batch_name_from_vendor=batch_name_from_vendor)
+        align_entries = get_latest_results("align", batch_name_from_vendor=batch_name_from_vendor)
+        post_align_entries = get_latest_results("post-align", batch_name_from_vendor=batch_name_from_vendor)
 
     for index, fastq_record in fastq_records_df.iterrows():
         fastq_name = fastq_record["fastq_name"]

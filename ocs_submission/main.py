@@ -173,7 +173,7 @@ def main() -> None:
     if fastq_records_df empty: log and return
     log_fastq_status_summaries(...)
     ocs_job_commands_df = build_ocs_job_submission_command(...)
-    if audit: for each unique batch_name_from_vendor in ocs_job_commands_df: run_audit(batch_name)
+    if audit: for each unique batch_name_from_vendor in ocs_job_commands_df: run_audit(batch_name_from_vendor)
     ocs_job_commands_df = execute_ocs_submission_commands(
         ocs_job_commands_df, job_limit
     )
@@ -236,16 +236,16 @@ def main() -> None:
     )
 
     if args.audit == "true":
-        unique_batch_names = [
-            batch_name
-            for batch_name in ocs_job_commands_df["batch_name_from_vendor"]
+        unique_batch_names_from_vendor = [
+            batch_name_from_vendor
+            for batch_name_from_vendor in ocs_job_commands_df["batch_name_from_vendor"]
             .dropna()
             .unique()
-            if batch_name
+            if batch_name_from_vendor
         ]
-        for batch_name in unique_batch_names:
-            logger.info("Running audit for batch name from vendor: %s", batch_name)
-            send_audit_email(batch_name, args.email)
+        for batch_name_from_vendor in unique_batch_names_from_vendor:
+            logger.info("Running audit for batch name from vendor: %s", batch_name_from_vendor)
+            send_audit_email(batch_name_from_vendor, args.email)
 
     ocs_job_commands_df = execute_ocs_submission_commands(
         ocs_job_commands_df=ocs_job_commands_df,

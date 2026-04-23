@@ -258,9 +258,9 @@ def send_command_summary_email(
 AUDIT_OUTPUT_DIR = Path("/results") if Path("/results").is_dir() else Path(".")
 
 
-def send_audit_email(batch_name: str, notify_email: str) -> None:
+def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     """
-    Run the LIMS audit for ``batch_name`` and email the CSVs as attachments to ``notify_email``.
+    Run the LIMS audit for ``batch_name_from_vendor`` and email the CSVs as attachments to ``notify_email``.
 
     Writes the missing-data report and the full LIMS pull to CSV files under ``/results`` (or the
     current directory in local runs) and passes them as attachments to the Code Ocean email
@@ -268,21 +268,21 @@ def send_audit_email(batch_name: str, notify_email: str) -> None:
     """
     if not notify_email:
         logger.info(
-            "Skipping audit email for %s: no notify email provided.", batch_name
+            "Skipping audit email for %s: no notify email provided.", batch_name_from_vendor
         )
         return
 
-    lims_data, report, modality = run_audit(batch_name)
+    lims_data, report, modality = run_audit(batch_name_from_vendor)
 
-    report_path = AUDIT_OUTPUT_DIR / f"{batch_name}_{modality}_missing_data.csv"
-    lims_path = AUDIT_OUTPUT_DIR / f"{batch_name}_lims_pull.csv"
+    report_path = AUDIT_OUTPUT_DIR / f"{batch_name_from_vendor}_{modality}_missing_data.csv"
+    lims_path = AUDIT_OUTPUT_DIR / f"{batch_name_from_vendor}_lims_pull.csv"
     report.to_csv(report_path, index=False)
     lims_data.to_csv(lims_path, index=False)
 
-    subject = f"LIMS Audit - Batch: {batch_name}"
+    subject = f"{modality} Audit Report for {batch_name_from_vendor}"
     body = "\n".join(
         [
-            f"LIMS Audit for Batch: {batch_name}",
+            f"LIMS Audit for Batch: {batch_name_from_vendor}",
             f"Modality: {modality}",
             f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             "",

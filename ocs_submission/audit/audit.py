@@ -88,7 +88,7 @@ class RTXAuditor(Auditor):
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
-                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, does not fail audit)", "Present"]
+                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, or updated later)", "Present"]
             ),
             Rule(
                 ["facs_population_plan", "age", "sex", "sample_name", "load_name", "studies", "roi"],
@@ -115,7 +115,7 @@ class MTXAuditor(Auditor):
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
-                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, does not fail audit)", "Present"]
+                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, or updated later", "Present"]
             ),
             Rule(
                 ["facs_population_plan", "age", "sex", "sample_name", "load_name", "studies", "roi"],
@@ -125,13 +125,13 @@ class MTXAuditor(Auditor):
         super().__init__(rules, identifiers)
 
 
-def run_audit(batch_name: str) -> tuple[pd.DataFrame, pd.DataFrame, str]:
-    """Pull LIMS data for ``batch_name`` and build the missing-data report.
+def run_audit(batch_name_from_vendor: str) -> tuple[pd.DataFrame, pd.DataFrame, str]:
+    """Pull LIMS data for ``batch_name_from_vendor`` and build the missing-data report.
 
     Returns ``(lims_data, report, modality)``. The caller decides what to do with the
     CSVs (e.g. email them).
     """
-    prefix = batch_name.split("-")[0][:3]
+    prefix = batch_name_from_vendor.split("-")[0][:3]
 
     sql_file = f"{script_dir}/lims_rtx_ocs.sql" if prefix in ("RTX", "10X") else f"{script_dir}/lims_mtx_ocs.sql"
     auditor = RTXAuditor() if prefix in ("RTX", "10X") else MTXAuditor()
@@ -145,7 +145,11 @@ def run_audit(batch_name: str) -> tuple[pd.DataFrame, pd.DataFrame, str]:
     )
 
     with open(sql_file) as f:
-        sql = f.read().format(load_name="''", exp_component_name="''", batch_name=f"'{batch_name}'")
+        sql = f.read().format(
+            load_name="''",
+            exp_component_name="''",
+            batch_name=f"'{batch_name_from_vendor}'",
+        )
 
     with conn.cursor() as cur:
         cur.execute(sql)
