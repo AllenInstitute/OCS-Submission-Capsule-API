@@ -280,11 +280,21 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     lims_data.to_csv(lims_path, index=False)
 
     subject = f"{modality} Audit Report for {batch_name_from_vendor}"
+    audit_message = (
+        f"No missing {modality} data found."
+        if report.empty
+        else f"Missing {modality} data table generated for {batch_name_from_vendor}"
+    )
+    if not report.empty:
+        logger.warning(
+            f"Missing {modality} data found. Please wait till corrected before proceeding with next steps."
+        )
     body = "\n".join(
         [
             f"LIMS Audit for Batch: {batch_name_from_vendor}",
             f"Modality: {modality}",
             f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            audit_message,
             "",
             "Attached:",
             f"  - {report_path.name}",
