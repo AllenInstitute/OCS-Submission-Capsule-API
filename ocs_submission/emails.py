@@ -280,12 +280,15 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     lims_data.to_csv(lims_path, index=False)
 
     subject = f"{modality} Audit Report for {batch_name_from_vendor}"
-    audit_message = (
-        f"No missing {modality} data found."
-        if report.empty
-        else f"Missing {modality} data table generated for {batch_name_from_vendor}"
-    )
-    if not report.empty:
+
+    has_age_unknown = not report.empty and "age" in report.columns and (report["age"] == "UNKNOWN").any()
+
+    if report.empty or has_age_unknown:
+        audit_message = f"No missing {modality} data found."
+        if has_age_unknown:
+            audit_message += "\nNote: age contains a literal 'unknown' value."
+    else:
+        audit_message = f"Missing {modality} data table generated for {batch_name_from_vendor}"
         logger.warning(
             f"Missing {modality} data found. Please wait till corrected before proceeding with next steps."
         )
