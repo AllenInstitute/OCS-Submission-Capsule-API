@@ -235,18 +235,6 @@ def main() -> None:
         dry_run=dry_run,
     )
 
-    if args.audit == "true":
-        unique_batch_names_from_vendor = [
-            batch_name_from_vendor
-            for batch_name_from_vendor in ocs_job_commands_df["batch_name_from_vendor"]
-            .dropna()
-            .unique()
-            if batch_name_from_vendor
-        ]
-        for batch_name_from_vendor in unique_batch_names_from_vendor:
-            logger.info("Running audit for batch name from vendor: %s", batch_name_from_vendor)
-            send_audit_email(batch_name_from_vendor, args.email)
-
     ocs_job_commands_df = execute_ocs_submission_commands(
         ocs_job_commands_df=ocs_job_commands_df,
         job_limit=config["job_settings"]["limit"],
@@ -262,6 +250,15 @@ def main() -> None:
         )
 
     logger.info("OCS Submission Completed.")
+
+    if args.audit == "true":
+        unique_batch_names = ocs_job_commands_df["batch_name_from_vendor"].dropna().unique()
+        for batch_name in unique_batch_names:
+            logger.info("Running AUDIT for batch name from vendor: %s", batch_name)
+            try:
+                send_audit_email(batch_name, args.email)
+            except Exception as e:
+                logger.warning("AUDIT failed for %s: %s", batch_name, e)
 
 
 if __name__ == "__main__":
