@@ -23,8 +23,6 @@ class Rule:
 class Auditor:
     def __init__(self, rules, identifiers):
         self.rules = rules
-        if isinstance(identifiers, str):
-            identifiers = [identifiers]
         self.identifiers = identifiers
 
     def generate_report(self, dataset):
@@ -33,29 +31,32 @@ class Auditor:
         id_columns = list(id_rename.values())
         dataset = pd.merge(dataset.rename(columns=id_rename), dataset)
 
+        # Apply rules to the dataset 
         for rule in self.rules:
             rule_output = dataset[rule.columns].apply(rule.condition)
             if callable(rule.ignore):
                 rule_output.loc[rule.ignore(dataset), rule.columns] = False
-            elif rule.ignore is not None:
-                rule_output.loc[rule.ignore, rule.columns] = False
             rule_output = pd.concat(
                 [dataset[id_columns], rule_output], join="inner", axis=1
             ).loc[rule_output.any(axis=1)]
             missing_data.append(rule_output)
 
+        # Label the ones that are to be ignored as "Not Required"
+        # Label the rest as being present and label the True values as missing
         for rule, rule_output in zip(self.rules, missing_data):
             if rule_output.empty:
                 continue
             if callable(rule.ignore):
+                rule_output[rule.columns] = rule_output[rule.columns].astype(object)
                 rule_output.loc[rule.ignore(dataset), rule.columns] = "Not required"
-            elif rule.ignore is not None:
-                rule_output.loc[rule.ignore, rule.columns] = "Not required"
             rule_output.loc[:, rule.columns] = rule_output.loc[:, rule.columns].replace(
                 {True: rule.tf_values[0], False: rule.tf_values[1]}
             )
 
+        # Concatenate the missing data and reset the index
         missing_data = pd.concat(missing_data).reset_index(drop=True)
+
+        # Fill the missing values with "Present"
         missing_data.loc[:, ~missing_data.columns.str.endswith("_id")] = (
             missing_data.loc[:, ~missing_data.columns.str.endswith("_id")].fillna(
                 "Present"
