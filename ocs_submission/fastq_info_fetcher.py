@@ -66,12 +66,12 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
         "Fastq Name": "fastq_name",
         "Study Set": "study_set",
         "Load Name": "load_name",
-        "Library Prep Method Name": "library_prep_method_name",
-        "Organism Common Name": "organism_common_name",
+        "Library Prep Method": "library_prep_method_name",
+        "Organism": "organism_common_name",
         "Batch Name From Vendor": "batch_name_from_vendor",
-        "Ingest Status": "ingest_status",
-        "Alignment Status": "alignment_status",
-        "Post-Alignment Status": "post_alignment_status",
+        "Ingest": "ingest_status",
+        "Alignment": "alignment_status",
+        "Post Alignment": "post_alignment_status",
     }
     return fastq_records_df[list(exporter_column_mapping)].rename(
         columns=exporter_column_mapping
