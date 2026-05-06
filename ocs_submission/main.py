@@ -188,6 +188,14 @@ def main() -> None:
             "Cannot specify both --batch-name-from-vendor and --fastq-names."
         )
 
+    if args.fastq_names:
+        normalized_fastq_names: list[str] = []
+        for token in args.fastq_names:
+            normalized_fastq_names.extend(
+                part for part in re.split(r"[,\s]+", token.strip()) if part
+            )
+        args.fastq_names = normalized_fastq_names
+
     dry_run = args.dry_run == "true"
     if dry_run:
         logger.info("Dry run mode enabled. Submission commands will not be executed.")
