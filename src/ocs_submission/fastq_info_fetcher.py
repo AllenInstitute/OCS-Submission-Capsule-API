@@ -39,9 +39,7 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     fastq_records_df = fastq_records_df.replace(", ", "; ")
 
     if "Batch Name From Vendor" not in fastq_records_df.columns:
-        metadata_df = query_metadata(
-            fastq_name_list=fastq_records_df["Fastq Name"].tolist()
-        )
+        metadata_df = query_metadata(fastq_name_list=fastq_records_df["Fastq Name"].tolist())
         batch_name_from_vendor_list = [
             metadata_df.loc[fastq_name, "batch_name_from_vendor"]
             for fastq_name in fastq_records_df["Fastq Name"]
@@ -89,7 +87,7 @@ def load_fastq_records_df_from_batch(batch_name_from_vendor: str) -> pd.DataFram
     """
     fastq_records_df = query_metadata(batch_name_from_vendor=batch_name_from_vendor)
     fastq_records_df = check_all_fastq_stage_status(fastq_records_df=fastq_records_df)
-    
+
     return fastq_records_df[FASTQ_RECORD_COLUMNS]
 
 

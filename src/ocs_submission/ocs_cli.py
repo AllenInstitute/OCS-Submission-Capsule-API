@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def execute_ocs_cmd(cmd_list: list[str]) -> subprocess.CompletedProcess:
     """
     Executes an OCS CLI command and returns the output.
-    
+
     Parameters:
     cmd_list: A list of strings representing the OCS CLI command to execute.
 
@@ -33,7 +33,7 @@ def execute_ocs_cmd(cmd_list: list[str]) -> subprocess.CompletedProcess:
 def extract_demand_id_from_output(output_text: str) -> tuple[str | None, bool]:
     """
     Parse and extracts the demand id from the output of an OCS CLI command.
-    
+
     Parameters:
     output_text: A string containing the output of an OCS CLI command.
 
@@ -53,7 +53,7 @@ def extract_demand_id_from_output(output_text: str) -> tuple[str | None, bool]:
 def count_jobs(job_type: str) -> int:
     """
     Count the number of in-progress jobs in alignment or post-alignment.
-    
+
     Parameters:
     job_type: A string representing the demand type to count align or post-align).
 
@@ -100,9 +100,7 @@ def can_submit_job(job_limit: int, dry_run: bool = False) -> bool:
     total_jobs = align_count + post_align_count
 
     if total_jobs >= job_limit:
-        logger.info(
-            f"Cannot submit job: {total_jobs} jobs already running (limit: {job_limit})"
-        )
+        logger.info(f"Cannot submit job: {total_jobs} jobs already running (limit: {job_limit})")
         logger.info(f"  - Alignment jobs: {align_count}")
         logger.info(f"  - Post-alignment jobs: {post_align_count}")
         return False
@@ -125,6 +123,7 @@ def get_latest_results(
     A dataframe with one row per fastq name and ingest_status, align_status, and
     postalign_status columns set to COMPLETED or NOT COMPLETED.
     """
+
     def list_results_cmd(results_arg: str) -> list[str]:
         return [
             "ocs",
@@ -155,11 +154,7 @@ def get_latest_results(
 
         async def fill_results() -> None:
             results = await asyncio.gather(
-                *(
-                    fetch(stage, fastq_name)
-                    for stage in Stage
-                    for fastq_name in fastq_name_list
-                )
+                *(fetch(stage, fastq_name) for stage in Stage for fastq_name in fastq_name_list)
             )
             for fastq_name, status_column, status in results:
                 fastq_stage_status_df.at[fastq_name, status_column] = status
@@ -185,6 +180,7 @@ def get_latest_results(
 
         return fastq_stage_status_df
 
+
 def query_metadata(
     fastq_name_list: list[str] | None = None,
     batch_name_from_vendor: str | None = None,
@@ -192,7 +188,7 @@ def query_metadata(
     """
     Query the metadata of either a list of fastq names or a batch name from vendor through OCS.
     Raises a ValueError if no fastq names or batch name from vendor is provided.
-    
+
     Parameters:
     fastq_name_list: A list of fastq names to query metadata for.
     batch_name_from_vendor: A batch name from vendor to query metadata for.
