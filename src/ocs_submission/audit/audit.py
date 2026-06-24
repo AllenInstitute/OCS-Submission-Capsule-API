@@ -5,6 +5,8 @@ import sys
 import pandas as pd
 import psycopg2
 
+from ..environment import lims_database_password, lims_database_username
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -51,43 +53,69 @@ class Auditor:
             )
 
         missing_data_df = pd.concat(missing_data_list).reset_index(drop=True)
-        missing_data_df.loc[:, ~missing_data_df.columns.str.endswith("_id")] = (
-            missing_data_df.loc[:, ~missing_data_df.columns.str.endswith("_id")].fillna(
-                "Present"
-            )
-        )
+        missing_data_df.loc[:, ~missing_data_df.columns.str.endswith("_id")] = missing_data_df.loc[
+            :, ~missing_data_df.columns.str.endswith("_id")
+        ].fillna("Present")
         return missing_data_df
 
 
 class RTXAuditor(Auditor):
     def __init__(self):
-        identifiers = ["batch_vendor_name", "sample_name", "species", "studies", "external_donor_name", "donor_name"]
+        identifiers = [
+            "batch_vendor_name",
+            "sample_name",
+            "species",
+            "studies",
+            "external_donor_name",
+            "donor_name",
+        ]
         rules = [
             Rule(
                 "full_genotype",
                 lambda col: pd.isna(col) | col.str.contains("NULL", na=False),
-                lambda df: df["organism"] != "mouse"
+                lambda df: df["organism"] != "mouse",
             ),
             Rule(
                 ["injection_method", "injection_roi", "injection_materials"],
                 pd.isna,
                 lambda df: (
-                    df[["injection_method", "injection_roi", "injection_materials"]].isna().all(axis=1) &
-                    ~df["studies"].str.contains("Enhancer|Zirong|Nelson", na=False) &
-                    ~df["studies"].isin([
-                        "HGT", "Barcoded_Rabies_Virus", "ZhigangHe", "RetroSeq",
-                        "Viral_Reporter_Local", "Nowakowski_Dev", "HGT_Enhancer_Virus"
-                    ])
-                )
+                    df[["injection_method", "injection_roi", "injection_materials"]]
+                    .isna()
+                    .all(axis=1)
+                    & ~df["studies"].str.contains("Enhancer|Zirong|Nelson", na=False)
+                    & ~df["studies"].isin(
+                        [
+                            "HGT",
+                            "Barcoded_Rabies_Virus",
+                            "ZhigangHe",
+                            "RetroSeq",
+                            "Viral_Reporter_Local",
+                            "Nowakowski_Dev",
+                            "HGT_Enhancer_Virus",
+                        ]
+                    )
+                ),
             ),
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
-                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, or updated later)", "Present"]
+                tf_values=[
+                    "UNKNOWN (flagged for review - age may be genuinely unknown, "
+                    "or updated later)",
+                    "Present",
+                ],
             ),
             Rule(
-                ["facs_population_plan", "age", "sex", "sample_name", "load_name", "studies", "roi"],
-                pd.isna
+                [
+                    "facs_population_plan",
+                    "age",
+                    "sex",
+                    "sample_name",
+                    "load_name",
+                    "studies",
+                    "roi",
+                ],
+                pd.isna,
             ),
         ]
         super().__init__(rules, identifiers)
@@ -95,48 +123,76 @@ class RTXAuditor(Auditor):
 
 class MTXAuditor(Auditor):
     def __init__(self):
-        identifiers = ["batch_vendor_name", "sample_name", "species", "studies", "external_donor_name", "donor_name"]
+        identifiers = [
+            "batch_vendor_name",
+            "sample_name",
+            "species",
+            "studies",
+            "external_donor_name",
+            "donor_name",
+        ]
         rules = [
-            Rule(
-                "full_genotype",
-                pd.isna,
-                lambda df: df["organism"] != "mouse"
-            ),
+            Rule("full_genotype", pd.isna, lambda df: df["organism"] != "mouse"),
             Rule(
                 ["injection_method", "injection_roi", "injection_materials"],
                 pd.isna,
-                lambda df: df[["injection_method", "injection_roi", "injection_materials"]].isna().all(axis=1)
+                lambda df: (
+                    df[["injection_method", "injection_roi", "injection_materials"]]
+                    .isna()
+                    .all(axis=1)
+                ),
             ),
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
-                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, or updated later)", "Present"]
+                tf_values=[
+                    "UNKNOWN (flagged for review - age may be genuinely unknown, "
+                    "or updated later)",
+                    "Present",
+                ],
             ),
             Rule(
-                ["facs_population_plan", "age", "sex", "sample_name", "load_name", "studies", "roi"],
-                pd.isna
+                [
+                    "facs_population_plan",
+                    "age",
+                    "sex",
+                    "sample_name",
+                    "load_name",
+                    "studies",
+                    "roi",
+                ],
+                pd.isna,
             ),
         ]
         super().__init__(rules, identifiers)
 
 
 def run_audit(batch_name_from_vendor: str) -> tuple[pd.DataFrame, pd.DataFrame, str]:
-    """Pull LIMS data for ``batch_name_from_vendor`` and build the missing-data report.
+    """
+    Pulls LIMS data for a vendor batch and builds the missing-data report.
 
-    Returns ``(lims_data, report, modality)``. The caller decides what to do with the
-    CSVs (e.g. email them).
+    Parameters:
+    batch_name_from_vendor: A string naming the vendor batch to audit.
+
+    Returns:
+    A tuple ``(lims_data, report, modality)`` containing the LIMS data, the
+    missing-data report, and the modality.
     """
     prefix = batch_name_from_vendor.split("-")[0][:3]
 
-    sql_file = f"{script_dir}/lims_rtx_ocs.sql" if prefix in ("RTX", "10X") else f"{script_dir}/lims_mtx_ocs.sql"
+    sql_file = (
+        f"{script_dir}/lims_rtx_ocs.sql"
+        if prefix in ("RTX", "10X")
+        else f"{script_dir}/lims_mtx_ocs.sql"
+    )
     auditor = RTXAuditor() if prefix in ("RTX", "10X") else MTXAuditor()
     modality = prefix if prefix in ("RTX", "10X") else "MTX"
 
     conn = psycopg2.connect(
         host="lims2.private-allenneuraldynamics.org",
         database="lims2",
-        user=os.environ["DATABASE_USERNAME"],
-        password=os.environ["DATABASE_PASSWORD"],
+        user=lims_database_username(),
+        password=lims_database_password(),
     )
 
     with open(sql_file) as f:

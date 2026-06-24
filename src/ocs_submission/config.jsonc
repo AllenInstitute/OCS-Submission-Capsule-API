@@ -107,7 +107,9 @@
   "probe_sets_by_organism": {
     "mouse": {
       "10xV4_FX4": "mouse_10x_mm10-egfp-mscarlet-vbc_chromium_v1.1_cellflex_probe_set",
-      "10xV4_FX16": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set"
+      "10xV4_FX16": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set",
+      "10xV4_FX16-TK": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set",
+      "10xV4_FX16-TK_BC": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set"
     }
   },
   "chemistry_by_library_prep": {
@@ -122,10 +124,53 @@
     "MTX": {
       "alignment_command_configs": [
         {
+          "name": "10xMultX_GEX",
+          "match": {
+            "library_preps": [
+              "10xMultX_GEX"
+            ],
+            "organisms": [
+              "*"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-arc"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "cellranger-arc"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "2.2.0"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 180
+        },
+        {
           "name": "default",
           "match": {
             "library_preps": [
-              "10xMultX_GEX",
               "10xRSeq_Mult"
             ],
             "organisms": [
@@ -211,6 +256,7 @@
               "10xRseq_Mult_noATAC",
               "10xV3.1_HT",
               "10Xv3.1",
+              "10Xv3.1_LT",
               "10Xv3",
               "10Xv2"
             ],
@@ -498,7 +544,9 @@
           "name": "10xV4_FX16",
           "match": {
             "library_preps": [
-              "10xV4_FX16"
+              "10xV4_FX16",
+              "10xV4_FX16-TK",
+              "10xV4_FX16-TK_BC"
             ],
             "organisms": [
               "*"

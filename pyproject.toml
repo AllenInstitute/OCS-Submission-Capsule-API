@@ -7,30 +7,94 @@ name = "ocs-submission"
 version = "0.1.0"
 description = "OCS Submission Capsule: load FASTQ status, build alignment and post-alignment commands, submit to OCS, audit LIMS, and email summaries."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { text = "Proprietary" }
 authors = [{ name = "Allen Institute" }]
 dependencies = [
     "pandas>=2.0",
     "psycopg2-binary>=2.9",
-    "codeocean>=0.15.0",
     "boto3>=1.34",
 ]
 
 [project.scripts]
 ocs-submission = "ocs_submission.main:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["ocs_submission"]
+# Optional dev tooling. Install with: pip install -e '.[dev]'
+[project.optional-dependencies]
+dev = [
+    "ruff~=0.12",
+    "mypy~=1.16",
+    "pytest~=8.0",
+    "pytest-cov~=5.0",
+    "pandas-stubs",
+    "boto3-stubs[ses]",
+]
 
-[tool.hatch.build.targets.wheel.force-include]
-"ocs_submission/config.jsonc" = "ocs_submission/config.jsonc"
-"ocs_submission/audit/lims_mtx_ocs.sql" = "ocs_submission/audit/lims_mtx_ocs.sql"
-"ocs_submission/audit/lims_rtx_ocs.sql" = "ocs_submission/audit/lims_rtx_ocs.sql"
+# src/ layout: Hatchling strips the leading "src/" so the package still installs as
+# `ocs_submission`. https://hatch.pypa.io/latest/config/build/#packages
+# The bundled data files (config.jsonc, *.sql) live inside the package directory, so Hatchling
+# includes them automatically — no force-include needed. A force-include here would also
+# materialize a partial data-only copy of the package in editable installs, shadowing the
+# editable source and breaking imports, so it must NOT be reintroduced.
+[tool.hatch.build.targets.wheel]
+packages = ["src/ocs_submission"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "ocs_submission",
+    "src/ocs_submission",
     "README.md",
     "pyproject.toml",
 ]
+
+# -----------------------------------------------------------------------------
+#  Ruff (lint + format) — https://docs.astral.sh/ruff/configuration/
+# -----------------------------------------------------------------------------
+[tool.ruff]
+line-length = 99
+indent-width = 4
+
+[tool.ruff.lint]
+# E = pycodestyle, F = Pyflakes, I = isort
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow long lines in tests (parametrized cases and assertions are often wide).
+"tests/*" = ["E501"]
+
+# -----------------------------------------------------------------------------
+#  mypy — https://mypy.readthedocs.io/en/stable/config_file.html
+#  Started intentionally lenient: `check_untyped_defs` catches real bugs inside
+#  the older untyped modules without requiring every function to be annotated.
+#  Tighten (e.g. disallow_untyped_defs) once the legacy modules gain types.
+# -----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+show_error_codes = true
+pretty = true
+exclude = ['build/', 'dist/', 'tests/']
+
+# -----------------------------------------------------------------------------
+#  pytest — https://docs.pytest.org/en/stable/reference/customize.html
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = ["-ra", "--import-mode=importlib"]
+testpaths = ["tests"]
+
+# -----------------------------------------------------------------------------
+#  Coverage — https://coverage.readthedocs.io/en/latest/config.html
+# -----------------------------------------------------------------------------
+[tool.coverage.run]
+branch = true
+source = ["ocs_submission"]
+
+[tool.coverage.report]
+omit = ["tests/*"]
+exclude_also = [
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+skip_empty = true

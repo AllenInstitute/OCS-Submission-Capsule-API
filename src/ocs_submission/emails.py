@@ -11,24 +11,32 @@ import pandas as pd
 
 from . import OUTPUT_DIR
 from .audit import run_audit
+from .environment import clear_aws_credential_env, ses_region, ses_source
+from .stages import Stage
 
 logger = logging.getLogger(__name__)
-REGION = os.environ["REGION"]
-SOURCE = os.environ["SOURCE"]
 
 
 def send_email(to_address: str, subject: str, body: str) -> str:
-    for env_key in (
-        "AWS_ACCESS_KEY_ID",
-        "AWS_SECRET_ACCESS_KEY",
-        "AWS_SESSION_TOKEN",
-        "AWS_PROFILE",
-    ):
-        os.environ.pop(env_key, None)
+    """
+    Sends a plain-text email via AWS SES.
 
-    ses = boto3.client("ses", region_name=REGION)
+    Parameters:
+    to_address: The recipient email address.
+    subject: The subject line of the email.
+    body: The plain-text body of the email.
+
+    Returns:
+    The SES message id of the sent email.
+    """
+    # Load SES settings here and clear OCS AWS creds so boto3 uses the SES credential chain.
+    region = ses_region()
+    source = ses_source()
+    clear_aws_credential_env()
+
+    ses = boto3.client("ses", region_name=region)
     response = ses.send_email(
-        Source=SOURCE,
+        Source=source,
         Destination={"ToAddresses": [to_address]},
         Message={
             "Subject": {"Data": subject, "Charset": "UTF-8"},
@@ -40,60 +48,43 @@ def send_email(to_address: str, subject: str, body: str) -> str:
     return response["MessageId"]
 
 
-def _stage_outcome(record, prefix: str) -> dict | None:
+def _stage_outcome(fastq_record, ocs_stage_name: str) -> dict | None:
     """
-    Read one stage's execution outcome from a command record into a flat dict.
+    Checks the outcome of a pipeline stage submission.
 
-    Returns ``None`` when the stage was not executed (submission_success is ``None``). Otherwise
-    returns a dict with the identity fields and either demand id (success) or error message
-    (failure), ready to be formatted by ``_format_block``.
+    Parameters:
+    record: Row from ocs_job_commands_df with fastq_name, load_name, and stage
+        submission fields (success, execution time, command, demand id, error).
+    ocs_stage_name: The pipeline stage name that was submitted.
 
-    Parameters
-    ----------
-    record
-        Named tuple row from ``ocs_job_commands_df.itertuples``.
-    prefix
-        Stage prefix, either ``"alignment"`` or ``"post_alignment"``.
-
-    Return
-    ----------
-    dict or None
-        Outcome dict, or ``None`` when no submission was attempted for this stage.
+    Returns:
+    None if the stage was not executed; otherwise a dict with the outcome fields.
     """
-    submission_success = getattr(record, f"{prefix}_submission_success")
+    submission_success = getattr(fastq_record, f"{ocs_stage_name}_submission_success")
     if submission_success is None:
         return None
     return {
         "success": submission_success,
-        "time": getattr(record, f"{prefix}_executed_at"),
-        "fastq_name": record.fastq_name,
-        "load_name": record.load_name,
-        "command": getattr(record, f"{prefix}_command"),
-        "demand_id": getattr(record, f"{prefix}_demand_id"),
-        "error_message": getattr(record, f"{prefix}_error_message"),
+        "time": getattr(fastq_record, f"{ocs_stage_name}_executed_at"),
+        "fastq_name": fastq_record.fastq_name,
+        "load_name": fastq_record.load_name,
+        "command": getattr(fastq_record, f"{ocs_stage_name}_command"),
+        "demand_id": getattr(fastq_record, f"{ocs_stage_name}_demand_id"),
+        "error_message": getattr(fastq_record, f"{ocs_stage_name}_error_message"),
     }
 
 
 def _format_block(index: int, job_type: str, outcome: dict) -> str:
     """
-    Format one submission or failure block for the summary email body.
+    Formats one submission or failure block for the email body.
 
-    Success blocks include the demand id; failure blocks include the error message. Both include
-    the common identity fields and the command that was submitted.
+    Parameters:
+    index: The 1-based position of this entry in its section.
+    job_type: The stage label shown in the email.
+    outcome: A _stage_outcome dict for this submission.
 
-    Parameters
-    ----------
-    index
-        1-based position of this entry in its section.
-    job_type
-        Stage label displayed in the email (``"alignment"`` or ``"postqc"``).
-    outcome
-        Dict produced by ``_stage_outcome``.
-
-    Return
-    ----------
-    str
-        Multi-line block terminated by a trailing newline.
+    Returns:
+    A multi-line block string.
     """
     line_list = [
         f"{index}. Fastq Name: {outcome['fastq_name']}",
@@ -109,42 +100,29 @@ def _format_block(index: int, job_type: str, outcome: dict) -> str:
     return "\n".join(line_list) + "\n"
 
 
-def send_command_summary_email(
-    ocs_job_commands_df: pd.DataFrame, notify_email: str
-) -> None:
+def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: str) -> None:
     """
-    Email a summary of submissions and failures after execution.
+    Emails a summary of submissions and failures after execution.
 
-    Does nothing if ``notify_email`` is empty or the frame is empty. Dry-run rows are skipped.
-    Walks each row and each stage, routing stage outcomes into success and failure lists, then
-    builds a plain-text email body and sends it via AWS SES. If the frame carries
-    exactly one batch name, that batch is used in the subject line.
-
-    Parameters
-    ----------
-    ocs_job_commands_df
-        Post-execution OCS job command rows (one per FASTQ, with ``alignment_*`` and
-        ``post_alignment_*`` columns).
-    notify_email
-        Destination address; if empty, no email is sent.
-
-    Return
-    ----------
-    None
+    Parameters:
+    ocs_job_commands_df: The post-execution dataframe with align and postalign columns.
+    notify_email: The recipient email address; an empty value is a no-op.
     """
     if not notify_email or ocs_job_commands_df.empty:
         return
 
     success_list: list[tuple[str, dict]] = list()
     failure_list: list[tuple[str, dict]] = list()
-    for record in ocs_job_commands_df.itertuples(index=False):
-        if record.dry_run:
+    for fastq_record in ocs_job_commands_df.itertuples(index=False):
+        if fastq_record.dry_run:
             continue
-        for job_type, prefix in [("alignment", "alignment"), ("postqc", "post_alignment")]:
-            outcome = _stage_outcome(record, prefix)
+        for stage in (Stage.ALIGNMENT, Stage.POST_ALIGNMENT):
+            outcome = _stage_outcome(fastq_record, stage.ocs_stage_name)
             if outcome is None:
                 continue
-            (success_list if outcome["success"] else failure_list).append((job_type, outcome))
+            (success_list if outcome["success"] else failure_list).append(
+                (stage.ocs_stage_name, outcome)
+            )
 
     if not (success_list or failure_list):
         return
@@ -191,16 +169,16 @@ def send_command_summary_email(
         subject=subject,
         body="\n".join(body_part_list),
     )
-    logger.info("Email sent via SES. Message ID: %s", message_id)
+    logger.info(f"Email sent via SES. Message ID: {message_id}")
 
 
 def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     """
-    Run the LIMS audit for ``batch_name_from_vendor`` and email a summary to ``notify_email``.
+    Runs the LIMS audit for a batch and emails a plain-text summary.
 
-    Writes the missing-data report and the full LIMS pull to CSV files under ``/results`` (or the
-    current directory in local runs), then lists those file paths in the email body. SES sends
-    plain-text email only. Does nothing when ``notify_email`` is empty.
+    Parameters:
+    batch_name_from_vendor: The vendor batch name to audit.
+    notify_email: The recipient email address; an empty value is a no-op.
     """
     if not notify_email:
         logger.info(
@@ -210,16 +188,16 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
 
     lims_data, report, modality = run_audit(batch_name_from_vendor)
 
-    report_path = os.path.join(
-        OUTPUT_DIR, f"{batch_name_from_vendor}_{modality}_missing_data.csv"
-    )
+    report_path = os.path.join(OUTPUT_DIR, f"{batch_name_from_vendor}_{modality}_missing_data.csv")
     lims_path = os.path.join(OUTPUT_DIR, f"{batch_name_from_vendor}_lims_pull.csv")
     report.to_csv(report_path, index=False)
     lims_data.to_csv(lims_path, index=False)
 
     subject = f"{modality} Audit Report for {batch_name_from_vendor}"
 
-    has_age_unknown = not report.empty and "age" in report.columns and (report["age"] == "UNKNOWN").any()
+    has_age_unknown = (
+        not report.empty and "age" in report.columns and (report["age"] == "UNKNOWN").any()
+    )
 
     if report.empty or has_age_unknown:
         audit_message = f"No missing {modality} data found."
@@ -228,7 +206,8 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     else:
         audit_message = f"Missing {modality} data table generated for {batch_name_from_vendor}"
         logger.warning(
-            f"Missing {modality} data found. Please wait till corrected before proceeding with next steps."
+            f"Missing {modality} data found. "
+            "Please wait till corrected before proceeding with next steps."
         )
     body = "\n".join(
         [
@@ -251,4 +230,4 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
         subject=subject,
         body=body,
     )
-    logger.info("Email sent via SES. Message ID: %s", message_id)
+    logger.info(f"Email sent via SES. Message ID: {message_id}")
