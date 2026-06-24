@@ -94,19 +94,19 @@ Follow these steps to run the OCS Submission Capsule:
 
 ## What This Capsule Does
 
-- Checks ingest, alignment, and post-alignment status for each FASTQ on OCS.
-- Loads FASTQ metadata from an OCS Tracker exporter CSV, a vendor batch name, or explicit FASTQ names.
+- Checks ingest, alignment, and post-alignment status for each Fastq sample on OCS.
+- Loads FASTQ metadata from an OCS Tracker exporter CSV, a batch name from vendor, or list of fastq names.
 - Builds alignment and post-alignment OCS commands from `config.jsonc` templates.
 - Skips any work that is already complete or currently in progress.
 - Submits jobs through the `ocs` CLI, respecting a configurable job limit.
 - Tracks submitted jobs in PostgreSQL so in-flight jobs can be re-checked on later runs.
-- Optionally runs a LIMS audit for each unique vendor batch.
+- Optionally runs a LIMS audit for every batch name from vendor.
 - Writes a JSON manifest of all planned and attempted commands.
 - Sends summary emails for successful and failed submissions via AWS SES.
 
 ## Workflow Overview
 
-The capsule follows a linear pipeline: it loads FASTQ metadata, checks where each sample stands in the ingest → align → postalign pipeline, builds the appropriate OCS commands, and submits only the work that still needs to be done. When `--audit true` is passed, it also queries the LIMS database to verify that sample metadata is complete and flags any missing fields before proceeding.
+The capsule follows a linear pipeline: it loads FASTQ metadata, checks where each sample stands in the ingest → align → postalign pipeline, builds the appropriate OCS commands, and can submit progress a fastq sample into the next stage in the pipeline. When `--audit true` is passed, it also queries the LIMS database to verify that sample metadata is complete and flags any missing fields before proceeding.
 ```
 Input (exporter CSV / batch name / FASTQ names)
         │
@@ -178,15 +178,13 @@ ocs-submission \
 |---|---|---|
 | `--modality` | Yes | Workflow modality: `RTX`, `MTX`, or `RFX` |
 | `--ocs-tracker-exporter` | No | Path to an OCS Tracker export CSV |
-| `--batch-name-from-vendor` | No | Vendor batch name |
-| `--fastq-names` | No | One or more FASTQ names |
+| `--batch-name-from-vendor` | No | Batch Name From Vendor |
+| `--fastq-names` | No | One or more Fastq Names |
 | `--force-submission` | No | Force `alignment` or `post-alignment` regardless of current status |
-| `--email`, `-e` | No | Override the notification email |
+| `--email`, `-e` | No | Email to send notifications too |
 | `--dry-run` | No | `true` or `false` (default `false`) — log commands without executing |
-| `--audit` | No | `true` or `false` (default `false`) — run LIMS audit per unique vendor batch |
-| `--config` | No | Path to JSONC config; defaults to the bundled `config.jsonc` |
-
-`--batch-name-from-vendor` and `--fastq-names` are mutually exclusive.
+| `--audit` | No | `true` or `false` (default `false`) — run LIMS audit for a batch name from vendor |
+| `--config` | No | Path to JSONC config; defaults to included `config.jsonc` |
 
 ## Configuration
 
@@ -204,7 +202,7 @@ Key sections:
 | `probe_sets_by_organism` | Optional probe-set mapping for supported organism/library-prep combinations |
 | `chemistry_by_library_prep` | Maps library prep names to chemistry strings |
 | `workflows` | Alignment and post-alignment command templates for `MTX`, `RTX`, and `RFX` |
-| `job_settings` | Submission limits and spacing between submissions |
+| `job_settings` | Submission limits and spacing between job submissions |
 | `status_mappings` | Defines which OCS statuses count as complete |
 
 Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`.
