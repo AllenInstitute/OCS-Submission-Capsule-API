@@ -1,3 +1,7 @@
 """OCS Submission Capsule package."""
 
-__version__ = "0.1.0"
+import os
+
+__version__ = "0.1.1"
+
+OUTPUT_DIR = "/results" if os.path.isdir("/results") else "."

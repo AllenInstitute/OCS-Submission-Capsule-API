@@ -23,45 +23,40 @@ class Rule:
 class Auditor:
     def __init__(self, rules, identifiers):
         self.rules = rules
-        if isinstance(identifiers, str):
-            identifiers = [identifiers]
         self.identifiers = identifiers
 
     def generate_report(self, dataset):
-        missing_data = []
+        missing_data_list = list()
         id_rename = {col: f"{col}_id" for col in self.identifiers}
-        id_columns = list(id_rename.values())
+        id_column_list = list(id_rename.values())
         dataset = pd.merge(dataset.rename(columns=id_rename), dataset)
 
         for rule in self.rules:
             rule_output = dataset[rule.columns].apply(rule.condition)
             if callable(rule.ignore):
                 rule_output.loc[rule.ignore(dataset), rule.columns] = False
-            elif rule.ignore is not None:
-                rule_output.loc[rule.ignore, rule.columns] = False
             rule_output = pd.concat(
-                [dataset[id_columns], rule_output], join="inner", axis=1
+                [dataset[id_column_list], rule_output], join="inner", axis=1
             ).loc[rule_output.any(axis=1)]
-            missing_data.append(rule_output)
+            missing_data_list.append(rule_output)
 
-        for rule, rule_output in zip(self.rules, missing_data):
+        for rule, rule_output in zip(self.rules, missing_data_list):
             if rule_output.empty:
                 continue
             if callable(rule.ignore):
+                rule_output[rule.columns] = rule_output[rule.columns].astype(object)
                 rule_output.loc[rule.ignore(dataset), rule.columns] = "Not required"
-            elif rule.ignore is not None:
-                rule_output.loc[rule.ignore, rule.columns] = "Not required"
             rule_output.loc[:, rule.columns] = rule_output.loc[:, rule.columns].replace(
                 {True: rule.tf_values[0], False: rule.tf_values[1]}
             )
 
-        missing_data = pd.concat(missing_data).reset_index(drop=True)
-        missing_data.loc[:, ~missing_data.columns.str.endswith("_id")] = (
-            missing_data.loc[:, ~missing_data.columns.str.endswith("_id")].fillna(
+        missing_data_df = pd.concat(missing_data_list).reset_index(drop=True)
+        missing_data_df.loc[:, ~missing_data_df.columns.str.endswith("_id")] = (
+            missing_data_df.loc[:, ~missing_data_df.columns.str.endswith("_id")].fillna(
                 "Present"
             )
         )
-        return missing_data
+        return missing_data_df
 
 
 class RTXAuditor(Auditor):
@@ -88,7 +83,7 @@ class RTXAuditor(Auditor):
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
-                tf_values=["UNKNOWN", "Present"]
+                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, or updated later)", "Present"]
             ),
             Rule(
                 ["facs_population_plan", "age", "sex", "sample_name", "load_name", "studies", "roi"],
@@ -115,7 +110,7 @@ class MTXAuditor(Auditor):
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
-                tf_values=["UNKNOWN", "passing"]
+                tf_values=["UNKNOWN (flagged for review - age may be genuinely unknown, or updated later)", "Present"]
             ),
             Rule(
                 ["facs_population_plan", "age", "sex", "sample_name", "load_name", "studies", "roi"],
@@ -125,8 +120,13 @@ class MTXAuditor(Auditor):
         super().__init__(rules, identifiers)
 
 
-def run_audit(batch_name: str) -> None:
-    prefix = batch_name.split("-")[0][:3]
+def run_audit(batch_name_from_vendor: str) -> tuple[pd.DataFrame, pd.DataFrame, str]:
+    """Pull LIMS data for ``batch_name_from_vendor`` and build the missing-data report.
+
+    Returns ``(lims_data, report, modality)``. The caller decides what to do with the
+    CSVs (e.g. email them).
+    """
+    prefix = batch_name_from_vendor.split("-")[0][:3]
 
     sql_file = f"{script_dir}/lims_rtx_ocs.sql" if prefix in ("RTX", "10X") else f"{script_dir}/lims_mtx_ocs.sql"
     auditor = RTXAuditor() if prefix in ("RTX", "10X") else MTXAuditor()
@@ -140,7 +140,11 @@ def run_audit(batch_name: str) -> None:
     )
 
     with open(sql_file) as f:
-        sql = f.read().format(load_name="''", exp_component_name="''", batch_name=f"'{batch_name}'")
+        sql = f.read().format(
+            load_name="''",
+            exp_component_name="''",
+            batch_name=f"'{batch_name_from_vendor}'",
+        )
 
     with conn.cursor() as cur:
         cur.execute(sql)
@@ -151,12 +155,9 @@ def run_audit(batch_name: str) -> None:
     lims_data = pd.DataFrame(rows, columns=columns)
     report = auditor.generate_report(lims_data)
 
-    out_dir = f"{script_dir}/out/{batch_name}"
-    os.makedirs(out_dir, exist_ok=True)
-
-    lims_data.to_csv(f"{out_dir}/{batch_name}_lims_pull.csv", index=False)
-    report.to_csv(f"{out_dir}/{batch_name}_{modality}_missing_data.csv", index=False)
+    return lims_data, report, modality
 
 
 if __name__ == "__main__":
-    run_audit(sys.argv[1])
+    lims_data, report, modality = run_audit(sys.argv[1])
+    print(report.to_csv(index=False))

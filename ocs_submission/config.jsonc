@@ -2,12 +2,16 @@
   // Main configuration.
   // Edit this file to add or change alignment and post-alignment commands.
   //
-  // How to add a new alignment command:
-  // 1. Go to workflows.<MODALITY>.alignment_command_configs
-  // 2. Add a new command config object
-  // 3. Set match.library_preps and optional match.organisms
-  // 4. Set command and arguments
-  // 5. Put more specific command configs before more general command configs
+  // Alignment — workflows.<MODALITY>.alignment_command_configs
+  //   1. Add a config object with name, match, command, arguments, and spacing.
+  //   2. In match, set library_preps and optionally organisms.
+  //      Use "*" to match any value, or list specific names to restrict.
+  //   3. Put more specific configs before general ones — first match wins.
+  //
+  // Post-alignment QC — workflows.<MODALITY>.post_alignment
+  //   1. Set command, arguments, and spacing.
+  //   2. Optionally add match.library_preps to limit which library preps run QC.
+  //      Omit match (or use "*") to run for all library preps in that modality.
   //
   // Argument values support these placeholders:
   // - {reference_name}
@@ -25,7 +29,7 @@
       "RTX": "mouse_10x_mm10_genome_star2.7.1a",
       "RFX": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1"
     },
-    "macaque": {
+    "macaque | macaque_nemestrina | macaque_fascicularis": {
       "RTX": "macaque_ncbi_mmul10_genome_star2.7.1a-1",
       "MTX": "macaque_ncbi_mmul10_genome_star2.7.1a"
     },
@@ -95,7 +99,7 @@
     "baboon": {
       "all": "baboon_ncbi_panubis1-0_genome_star2.7.1a"
     },
-    "harbor-porpoise": {
+    "harbor-porpoise | harbor_porpoise": {
       "MTX": "harbor-porpoise_ncbi_mphopho1-1_genome_star2.7.1a",
       "RTX": "harbor-porpoise_ncbi_mphopho1-1_genome_cr-v8-0-0"
     }
@@ -121,7 +125,8 @@
           "name": "default",
           "match": {
             "library_preps": [
-              "*"
+              "10xMultX_GEX",
+              "10xRSeq_Mult"
             ],
             "organisms": [
               "*"
@@ -159,6 +164,12 @@
         }
       ],
       "post_alignment": {
+        "match": {
+          "library_preps": [
+            "10xMultX_GEX",
+            "10xRSeq_Mult"
+          ]
+        },
         "command": [
           "ocs",
           "fastqs",
@@ -200,6 +211,7 @@
               "10xRseq_Mult_noATAC",
               "10xV3.1_HT",
               "10Xv3.1",
+              "10Xv3",
               "10Xv2"
             ],
             "organisms": [
@@ -574,7 +586,10 @@
     }
   },
   "job_settings": {
-    "limit": 100
+    "limit": 100,
+    // When the limit is reached, wait this many hours before re-checking capacity
+    // instead of skipping the job. Default 1.
+    "poll_interval_hours": 1
   },
   "status_mappings": {
     "ingest_complete": [

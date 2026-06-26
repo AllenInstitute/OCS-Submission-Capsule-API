@@ -23,7 +23,6 @@ COMMAND_RECORD_COLUMNS = [
     "alignment_demand_id",
     "alignment_submission_success",
     "alignment_error_message",
-    "alignment_output",
     "alignment_executed_at",
     "post_alignment_should_execute",
     "post_alignment_command_args",
@@ -32,7 +31,6 @@ COMMAND_RECORD_COLUMNS = [
     "post_alignment_demand_id",
     "post_alignment_submission_success",
     "post_alignment_error_message",
-    "post_alignment_output",
     "post_alignment_executed_at",
 ]
 
@@ -65,14 +63,6 @@ def select_alignment_command_config(
     dict
         The first matching alignment command config.
 
-    Pseudo code
-    ----------
-    read the ordered list of alignment command configs for the modality
-    for each config entry:
-        check whether the library prep matches
-        check whether the organism matches
-        return the first matching config entry
-    raise an error if no config matches
     """
     alignment_command_configs = config["workflows"][modality][
         "alignment_command_configs"
@@ -131,14 +121,6 @@ def build_ocs_command_args(
         Tuple of ``(command_args, spacing)`` where ``command_args`` is the argv-style command list
         and ``spacing`` is the configured delay before the next submission.
 
-    Pseudo code
-    ----------
-    build command_template_field_values (field name → value for this fastq)
-    copy the base command from the template
-    for each configured argument:
-        append the flag
-        append the rendered value when one exists
-    return the command arguments and spacing
     """
     library_prep_method_name = fastq_record.library_prep_method_name
     organism_common_name = fastq_record.organism_common_name
@@ -147,8 +129,14 @@ def build_ocs_command_args(
     organism_references = config["references"][organism_common_name]
     if modality in organism_references:
         reference_name = organism_references[modality]
-    else:
+    elif "all" in organism_references:
         reference_name = organism_references["all"]
+    else:
+        raise KeyError(
+            f"No reference for organism {organism_common_name!r} with modality {modality!r}: "
+            f"expected a {modality!r} or 'all' entry in config['references'][{organism_common_name!r}], "
+            f"found keys {sorted(organism_references)}"
+        )
     command_template_field_values = {
         "reference_name": reference_name,
         "load_name": fastq_record.load_name,
@@ -175,7 +163,6 @@ def build_alignment_job_command_record(
     config: dict,
     email: str,
     force_submission: str | None,
-    dry_run: bool,
 ) -> dict:
     """
     Build the alignment job command record for one FASTQ.
@@ -196,21 +183,12 @@ def build_alignment_job_command_record(
         Notification email to store on the command record.
     force_submission
         ``"alignment"`` to force alignment submission, or ``None``.
-    dry_run
-        Whether this run is a dry run.
 
     Return
     ----------
     dict
         One command record dictionary for an alignment job.
 
-    Pseudo code
-    ----------
-    decide whether alignment should execute based on ingest and alignment status
-    if alignment should execute:
-        select the matching alignment command config
-        build the concrete command arguments
-    return the full alignment command record
     """
     ingest_complete_statuses = config["status_mappings"]["ingest_complete"]
     alignment_complete_statuses = config["status_mappings"]["alignment_complete"]
@@ -222,15 +200,16 @@ def build_alignment_job_command_record(
     command_args = None
     spacing = None
 
-    if ingest_status not in ingest_complete_statuses:
-        pass
-    elif force_submission == "alignment":
-        should_execute = True
-    elif alignment_status in alignment_complete_statuses:
-        pass
-    elif alignment_status == "IN_PROGRESS":
-        pass
-    else:
+    if (
+        ingest_status in ingest_complete_statuses
+        and (
+            force_submission == "alignment"
+            or (
+                alignment_status not in alignment_complete_statuses
+                and alignment_status != "IN_PROGRESS"
+            )
+        )
+    ):
         should_execute = True
 
     if should_execute:
@@ -256,7 +235,6 @@ def build_alignment_job_command_record(
         "alignment_demand_id": None,
         "alignment_submission_success": None,
         "alignment_error_message": None,
-        "alignment_output": None,
         "alignment_executed_at": None,
     }
 
@@ -267,7 +245,6 @@ def build_post_alignment_job_command_record(
     config: dict,
     email: str,
     force_submission: str | None,
-    dry_run: bool,
     alignment_should_execute: bool,
 ) -> dict:
     """
@@ -289,8 +266,6 @@ def build_post_alignment_job_command_record(
         Notification email to store on the command record.
     force_submission
         ``"post-alignment"`` to force submission, or ``None``.
-    dry_run
-        Whether this run is a dry run.
     alignment_should_execute
         Whether alignment is scheduled to submit for this FASTQ in the current run.
 
@@ -299,12 +274,6 @@ def build_post_alignment_job_command_record(
     dict
         One command record dictionary for a post-alignment job.
 
-    Pseudo code
-    ----------
-    decide whether post-alignment should execute
-    if post-alignment should execute:
-        build the concrete command arguments from the post-alignment template
-    return the full post-alignment command record
     """
     alignment_complete_statuses = config["status_mappings"]["alignment_complete"]
     post_alignment_complete_statuses = config["status_mappings"][
@@ -313,22 +282,30 @@ def build_post_alignment_job_command_record(
 
     alignment_status = fastq_record.alignment_status
     post_alignment_status = fastq_record.post_alignment_status
+    post_alignment_template = config["workflows"][modality]["post_alignment"]
+    match = post_alignment_template.get("match", {})
+    library_preps = match.get("library_preps", ["*"])
+    library_prep_matches = (
+        "*" in library_preps
+        or fastq_record.library_prep_method_name in library_preps
+    )
 
     should_execute = False
     command_args = None
     spacing = None
 
-    if alignment_should_execute:
-        pass
-    elif alignment_status not in alignment_complete_statuses:
-        pass
-    elif force_submission == "post-alignment":
-        should_execute = True
-    elif post_alignment_status in post_alignment_complete_statuses:
-        pass
-    elif post_alignment_status == "IN_PROGRESS":
-        pass
-    else:
+    if (
+        library_prep_matches
+        and not alignment_should_execute
+        and alignment_status in alignment_complete_statuses
+        and (
+            force_submission == "post-alignment"
+            or (
+                post_alignment_status not in post_alignment_complete_statuses
+                and post_alignment_status != "IN_PROGRESS"
+            )
+        )
+    ):
         should_execute = True
 
     if should_execute:
@@ -337,7 +314,7 @@ def build_post_alignment_job_command_record(
             fastq_record=fastq_record,
             modality=modality,
             email=email,
-            command_template=config["workflows"][modality]["post_alignment"],
+            command_template=post_alignment_template,
         )
 
     return {
@@ -348,7 +325,6 @@ def build_post_alignment_job_command_record(
         "post_alignment_demand_id": None,
         "post_alignment_submission_success": None,
         "post_alignment_error_message": None,
-        "post_alignment_output": None,
         "post_alignment_executed_at": None,
     }
 
@@ -364,7 +340,7 @@ def build_ocs_job_submission_command(
     """
     Build the command records dataframe for every FASTQ in the input frame.
 
-    Each FASTQ produces two rows: one alignment record and one post-alignment record. The
+    Each FASTQ produces one row combining the alignment and post-alignment records. The
     post-alignment builder is told whether alignment is about to run in this same pass so it can
     skip when running both out of order would be wrong.
 
@@ -388,16 +364,8 @@ def build_ocs_job_submission_command(
     pd.DataFrame
         Dataframe of command records with ``COMMAND_RECORD_COLUMNS``.
 
-    Pseudo code
-    ----------
-    start an empty list of command rows
-    for each FASTQ record:
-        build the alignment job command record
-        build the post-alignment job command record
-        append both records
-    return the rows as a dataframe in standard column order
     """
-    command_rows = []
+    command_row_list = list()
 
     for fastq_record in fastq_records_df.itertuples(index=False):
         alignment_record = build_alignment_job_command_record(
@@ -406,7 +374,6 @@ def build_ocs_job_submission_command(
             config=config,
             email=email,
             force_submission=force_submission,
-            dry_run=dry_run,
         )
 
         post_alignment_record = build_post_alignment_job_command_record(
@@ -415,7 +382,6 @@ def build_ocs_job_submission_command(
             config=config,
             email=email,
             force_submission=force_submission,
-            dry_run=dry_run,
             alignment_should_execute=alignment_record["alignment_should_execute"],
         )
 
@@ -435,6 +401,6 @@ def build_ocs_job_submission_command(
             "notify_email": email,
         }
 
-        command_rows.append({**shared_record, **alignment_record, **post_alignment_record})
+        command_row_list.append({**shared_record, **alignment_record, **post_alignment_record})
 
-    return pd.DataFrame(command_rows, columns=COMMAND_RECORD_COLUMNS)
+    return pd.DataFrame(command_row_list, columns=COMMAND_RECORD_COLUMNS)

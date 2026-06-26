@@ -13,7 +13,8 @@ authors = [{ name = "Allen Institute" }]
 dependencies = [
     "pandas>=2.0",
     "psycopg2-binary>=2.9",
-    "codeocean>=1.0",
+    "codeocean>=0.15.0",
+    "boto3>=1.34",
 ]
 
 [project.scripts]

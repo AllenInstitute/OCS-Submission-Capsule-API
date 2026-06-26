@@ -6,7 +6,21 @@ optionally submits jobs to OCS, and sends email summaries.
 
 import argparse
 import logging
+import os
 import sys
+import json
+import re
+
+from . import OUTPUT_DIR, running_jobs_db
+from .ocs_command_builder import build_ocs_job_submission_command
+from .fastq_info_fetcher import (
+    log_fastq_status_summaries,
+    load_fastq_records_df_from_batch,
+    load_fastq_records_df_from_exporter,
+    load_fastq_records_df_from_fastq_names,
+)
+from .ocs_cli import execute_ocs_submission_commands
+from .emails import send_audit_email, send_command_summary_email
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,58 +28,10 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 
-import json
-import re
-from pathlib import Path
-
-import pandas as pd
-
-from . import running_jobs_db
-from .ocs_command_builder import build_ocs_job_submission_command
-from .execution import execute_ocs_submission_commands
-from .fetch_fastq_ocs_records import (
-    log_fastq_status_summaries,
-    load_fastq_records_df_from_batch,
-    load_fastq_records_df_from_exporter,
-    load_fastq_records_df_from_fastq_names,
-)
-from .notifications import send_command_summary_email
-
 logger = logging.getLogger(__name__)
 
-CONFIG_PATH = str(Path(__file__).resolve().parent / "config.jsonc")
-DATA_MANIFEST_PATH = ".data_manifest.json"
-
-
-def write_data_manifest(
-    ocs_job_commands_df: pd.DataFrame, manifest_path: str
-) -> None:
-    """
-    Write the OCS job commands dataframe to a JSON manifest in the results folder.
-
-    Parameters
-    ----------
-    ocs_job_commands_df
-        Dataframe of OCS job command records, typically the return value of
-        ``execute_ocs_submission_commands``.
-    manifest_path
-        Destination path for the manifest file. The parent directory is created if missing.
-
-    Return
-    ----------
-    None
-
-    Pseudo code
-    ----------
-    ensure the parent directory exists
-    write ocs_job_commands_df as JSON records with indent=2
-    log the path that was written
-    """
-    manifest_file = Path(manifest_path)
-    manifest_file.parent.mkdir(parents=True, exist_ok=True)
-    ocs_job_commands_df.to_json(manifest_file, orient="records", indent=2)
-    logger.info("Wrote data manifest to %s", manifest_file)
-
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.jsonc")
+DATA_MANIFEST_PATH = os.path.join(OUTPUT_DIR, "ocs_job_commands_manifest.json")
 
 def load_jsonc_config(config_path: str) -> dict:
     """
@@ -84,19 +50,20 @@ def load_jsonc_config(config_path: str) -> dict:
     dict
         Parsed configuration object.
 
-    Pseudo code
-    ----------
-    read file as text
-    strip /* ... */ and // ... lines
-    json.loads(text)
-    return dict
     """
     with open(config_path, "r") as file:
         jsonc_text = file.read()
 
     json_text = re.sub(r"/\*.*?\*/", "", jsonc_text, flags=re.DOTALL)
     json_text = re.sub(r"^\s*//.*$", "", json_text, flags=re.MULTILINE)
-    return json.loads(json_text)
+    config = json.loads(json_text)
+
+    config["references"] = {
+        organism.strip(): reference
+        for organisms, reference in config["references"].items()
+        for organism in organisms.split("|")
+    }
+    return config
 
 
 def parse_args() -> argparse.Namespace:
@@ -116,12 +83,6 @@ def parse_args() -> argparse.Namespace:
     argparse.Namespace
         Parsed arguments with attributes used by main() and loaders.
 
-    Pseudo code
-    ----------
-    build ArgumentParser("OCS Submission Capsule")
-    add --ocs-tracker-exporter, --modality (required), --batch-name-from-vendor,
-         --fastq-names, --force-submission, --email, --dry-run, --audit
-    return parser.parse_args()
     """
     parser = argparse.ArgumentParser(description="OCS Submission Capsule")
     parser.add_argument("--ocs-tracker-exporter", help="Export file from OCS Tracker")
@@ -162,21 +123,18 @@ def parse_args() -> argparse.Namespace:
         default="false",
         help="Run the LIMS audit each time an alignment command is executed (true/false, default: false)",
     )
+    parser.add_argument(
+        "--config",
+        default=CONFIG_PATH,
+        help=f"Path to a JSONC config file (default: {CONFIG_PATH})",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     """
-    Entry point for the OCS Submission Capsule workflow.
-
-    - parse CLI arguments and reject incompatible input combinations
-    - initialize the tracker database connection pool
-    - load FASTQ records from the chosen source (exporter, batch, or explicit names)
-    - log stage status summaries
-    - build the alignment and post-alignment command records
-    - submit the commands (or only log them for dry runs)
-    - send a summary email when not in dry-run mode
-
+    Main entry point for the OCS Submission Capsule workflow.
+    
     Parameters
     ----------
     (none)
@@ -185,24 +143,6 @@ def main() -> None:
     ----------
     None
 
-    Pseudo code
-    ----------
-    args = parse_args()
-    reject if batch_name_from_vendor and fastq_names both set
-    dry_run = (args.dry_run == "true")
-    init_connection_pool()
-    config = load_jsonc_config(CONFIG_PATH)
-    if ocs_tracker_exporter: load_fastq_records_df_from_exporter(...)
-    elif batch_name_from_vendor: load_fastq_records_df_from_batch(...)
-    elif fastq_names: load_fastq_records_df_from_fastq_names(...)
-    else: raise ValueError (require one of exporter, batch, or fastq names)
-    if fastq_records_df empty: log and return
-    log_fastq_status_summaries(...)
-    ocs_job_commands_df = build_ocs_job_submission_command(...)
-    ocs_job_commands_df = execute_ocs_submission_commands(ocs_job_commands_df, job_limit)
-    write_data_manifest(ocs_job_commands_df, DATA_MANIFEST_PATH)
-    if not dry_run: send_command_summary_email(...)
-    log completion
     """
     args = parse_args()
 
@@ -211,6 +151,14 @@ def main() -> None:
             "Cannot specify both --batch-name-from-vendor and --fastq-names."
         )
 
+    if args.fastq_names:
+        args.fastq_names = [
+            fastq_name
+            for raw_token in args.fastq_names
+            for fastq_name in re.split(r"[,\s]+", raw_token.strip())
+            if fastq_name
+        ]
+
     dry_run = args.dry_run == "true"
     if dry_run:
         logger.info("Dry run mode enabled. Submission commands will not be executed.")
@@ -218,7 +166,7 @@ def main() -> None:
     logger.info("Initializing database connection pool")
     running_jobs_db.init_connection_pool()
 
-    config = load_jsonc_config(CONFIG_PATH)
+    config = load_jsonc_config(args.config)
 
     if args.ocs_tracker_exporter:
         logger.info(
@@ -229,12 +177,10 @@ def main() -> None:
         )
     elif args.batch_name_from_vendor:
         fastq_records_df = load_fastq_records_df_from_batch(
-            args.batch_name_from_vendor, config
+            args.batch_name_from_vendor
         )
     elif args.fastq_names:
-        fastq_records_df = load_fastq_records_df_from_fastq_names(
-            args.fastq_names, config
-        )
+        fastq_records_df = load_fastq_records_df_from_fastq_names(args.fastq_names)
     else:
         raise ValueError(
             "Provide one of --ocs-tracker-exporter, --batch-name-from-vendor, or --fastq-names."
@@ -261,13 +207,11 @@ def main() -> None:
     ocs_job_commands_df = execute_ocs_submission_commands(
         ocs_job_commands_df=ocs_job_commands_df,
         job_limit=config["job_settings"]["limit"],
-        audit=args.audit == "true",
+        poll_interval_hours=config["job_settings"].get("poll_interval_hours", 1),
     )
 
-    write_data_manifest(
-        ocs_job_commands_df=ocs_job_commands_df,
-        manifest_path=DATA_MANIFEST_PATH,
-    )
+    ocs_job_commands_df.to_json(DATA_MANIFEST_PATH, orient="records", indent=2)
+    logger.info("Wrote data manifest to %s", DATA_MANIFEST_PATH)
 
     if not dry_run:
         send_command_summary_email(
@@ -276,6 +220,11 @@ def main() -> None:
         )
 
     logger.info("OCS Submission Completed.")
+
+    if args.audit == "true":
+        for batch_name in ocs_job_commands_df["batch_name_from_vendor"].dropna().unique():
+            logger.info("Running AUDIT for batch name from vendor: %s", batch_name)
+            send_audit_email(batch_name, args.email)
 
 
 if __name__ == "__main__":

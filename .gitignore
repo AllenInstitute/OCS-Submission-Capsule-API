@@ -24,3 +24,4 @@ htmlcov/
 
 ocs_submission/audit/out/
 data_manifest.json
+.data_manifest.json
