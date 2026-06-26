@@ -135,22 +135,24 @@ def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame
         fastq_name = fastq_record["fastq_name"]
         logger.info(f"Checking Status for {fastq_name}")
 
-        ingest_status = fastq_record[Stage.INGEST.fastq_status_column]
-        if ingest_status == "COMPLETED":
-            logger.info(f"  - Ingest Status: {ingest_status}")
-        else:
-            fastq_records_df.at[index, Stage.INGEST.fastq_status_column] = "NOT COMPLETED"
-            logger.info(f"  - No ingest entry found for {fastq_name}")
-            logger.info("  - Ingest Status: NOT COMPLETED")
-
-        for stage in (Stage.ALIGNMENT, Stage.POST_ALIGNMENT):
+        for stage in Stage:
             status = fastq_record[stage.fastq_status_column]
-            if status == "NOT COMPLETED":
-                db_status = running_jobs_db.check_job_status(fastq_name=fastq_name, stage=stage)
-                if db_status:
-                    status = db_status
-                fastq_records_df.at[index, stage.fastq_status_column] = status
-            logger.info(f"  - {stage.ocs_stage_name} Status: {status}")
+            stage_label = stage.ocs_stage_name.title()
+
+            if stage == Stage.INGEST:
+                if status == "COMPLETED":
+                    logger.info(f"  - {stage_label} Status: {status}")
+                else:
+                    fastq_records_df.at[index, stage.fastq_status_column] = "NOT COMPLETED"
+                    logger.info(f"  - No ingest entry found for {fastq_name}")
+                    logger.info(f"  - {stage_label} Status: NOT COMPLETED")
+            else:
+                if status == "NOT COMPLETED":
+                    db_status = running_jobs_db.check_job_status(fastq_name=fastq_name, stage=stage)
+                    if db_status:
+                        status = db_status
+                    fastq_records_df.at[index, stage.fastq_status_column] = status
+                logger.info(f"  - {stage_label} Status: {status}")
 
     return fastq_records_df
 
@@ -176,4 +178,4 @@ def log_fastq_status_summaries(
             if status != "NOT COMPLETED"
         ] or [f"Completed 0/{total_samples}"]
 
-        logger.info(f"  {stage.ocs_stage_name}: {' '.join(summary_part_list)}")
+        logger.info(f"  {stage.ocs_stage_name.title()}: {' '.join(summary_part_list)}")
