@@ -11,33 +11,33 @@ import pandas as pd
 
 from . import OUTPUT_DIR
 from .audit import run_audit
-from .environment import clear_aws_credential_env, ses_region, ses_source
+from .environment import clear_aws_credential_env
 from .stages import Stage
 
 logger = logging.getLogger(__name__)
 
+SES_REGION = "us-west-2"
 
-def send_email(to_address: str, subject: str, body: str) -> str:
+
+def send_email(email: str, subject: str, body: str) -> str:
     """
     Sends a plain-text email via AWS SES.
 
     Parameters:
-    to_address: The recipient email address.
+    email: The sender and recipient email address.
     subject: The subject line of the email.
     body: The plain-text body of the email.
 
     Returns:
     The SES message id of the sent email.
     """
-    # Load SES settings here and clear OCS AWS creds so boto3 uses the SES credential chain.
-    region = ses_region()
-    source = ses_source()
+    # Clear OCS AWS creds so boto3 uses the SES credential chain.
     clear_aws_credential_env()
 
-    ses = boto3.client("ses", region_name=region)
+    ses = boto3.client("ses", region_name=SES_REGION)
     response = ses.send_email(
-        Source=source,
-        Destination={"ToAddresses": [to_address]},
+        Source=email,
+        Destination={"ToAddresses": [email]},
         Message={
             "Subject": {"Data": subject, "Charset": "UTF-8"},
             "Body": {
@@ -165,7 +165,7 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
     body_part_list.append("This is an automated notification from the OCS Submission Capsule")
 
     message_id = send_email(
-        to_address=notify_email,
+        email=notify_email,
         subject=subject,
         body="\n".join(body_part_list),
     )
@@ -226,7 +226,7 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     )
 
     message_id = send_email(
-        to_address=notify_email,
+        email=notify_email,
         subject=subject,
         body=body,
     )

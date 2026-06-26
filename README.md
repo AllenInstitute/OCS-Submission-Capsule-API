@@ -50,8 +50,6 @@ Follow these steps to run the OCS Submission Capsule:
 
     ```bash
     export RUNNING_JOBS_DB_URL=postgresql://...
-    export REGION=us-west-2
-    export EMAIL_SOURCE=BICore@alleninstitute.org
     ```
 
 3. Run a dry run first to verify planned commands:
@@ -219,8 +217,6 @@ Command templates support placeholders such as `{reference_name}`, `{load_name}`
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `REGION` | `emails` | AWS region for the SES client |
-| `EMAIL_SOURCE` | `emails` | Verified SES sender address |
 | `RUNNING_JOBS_DB_URL` | `running_jobs_db` | PostgreSQL connection URL for the tracker DB |
 | `DATABASE_USERNAME` | `audit` | LIMS database user |
 | `DATABASE_PASSWORD` | `audit` | LIMS database password |

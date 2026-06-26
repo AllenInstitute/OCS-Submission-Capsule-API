@@ -12,14 +12,6 @@ AWS_CREDENTIAL_ENV_KEYS = (
 )
 
 
-def ses_region() -> str:
-    return os.environ["REGION"]
-
-
-def ses_source() -> str:
-    return os.environ["EMAIL_SOURCE"]
-
-
 def running_jobs_db_url() -> str:
     return os.environ["RUNNING_JOBS_DB_URL"]
 
