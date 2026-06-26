@@ -17,6 +17,7 @@ from .stages import Stage
 logger = logging.getLogger(__name__)
 
 SES_REGION = "us-west-2"
+SES_SOURCE = "notifications@allenneuraldynamics.org"
 
 
 def send_email(email: str, subject: str, body: str) -> str:
@@ -24,7 +25,7 @@ def send_email(email: str, subject: str, body: str) -> str:
     Sends a plain-text email via AWS SES.
 
     Parameters:
-    email: The sender and recipient email address.
+    email: The recipient email address.
     subject: The subject line of the email.
     body: The plain-text body of the email.
 
@@ -36,7 +37,7 @@ def send_email(email: str, subject: str, body: str) -> str:
 
     ses = boto3.client("ses", region_name=SES_REGION)
     response = ses.send_email(
-        Source=email,
+        Source=SES_SOURCE,
         Destination={"ToAddresses": [email]},
         Message={
             "Subject": {"Data": subject, "Charset": "UTF-8"},
