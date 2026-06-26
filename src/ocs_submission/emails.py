@@ -5,6 +5,9 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import boto3
 import pandas as pd
@@ -20,7 +23,12 @@ SES_REGION = "us-west-2"
 SES_SOURCE = "notifications@allenneuraldynamics.org"
 
 
-def send_email(email: str, subject: str, body: str) -> str:
+def send_email(
+    email: str,
+    subject: str,
+    body: str,
+    attachment_paths: list[str] | None = None,
+) -> str:
     """
     Sends a plain-text email via AWS SES.
 
@@ -28,6 +36,7 @@ def send_email(email: str, subject: str, body: str) -> str:
     email: The recipient email address.
     subject: The subject line of the email.
     body: The plain-text body of the email.
+    attachment_paths: Optional file paths to attach to the email.
 
     Returns:
     The SES message id of the sent email.
@@ -36,6 +45,30 @@ def send_email(email: str, subject: str, body: str) -> str:
     clear_aws_credential_env()
 
     ses = boto3.client("ses", region_name=SES_REGION)
+    if attachment_paths:
+        message = MIMEMultipart()
+        message["Subject"] = subject
+        message["From"] = SES_SOURCE
+        message["To"] = email
+        message.attach(MIMEText(body, "plain", "utf-8"))
+
+        for attachment_path in attachment_paths:
+            with open(attachment_path, "rb") as attachment_file:
+                part = MIMEApplication(attachment_file.read())
+            part.add_header(
+                "Content-Disposition",
+                "attachment",
+                filename=os.path.basename(attachment_path),
+            )
+            message.attach(part)
+
+        response = ses.send_raw_email(
+            Source=SES_SOURCE,
+            Destinations=[email],
+            RawMessage={"Data": message.as_bytes()},
+        )
+        return response["MessageId"]
+
     response = ses.send_email(
         Source=SES_SOURCE,
         Destination={"ToAddresses": [email]},
@@ -175,7 +208,7 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
 
 def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     """
-    Runs the LIMS audit for a batch and emails a plain-text summary.
+    Runs the LIMS audit for a batch and emails a summary with CSV attachments.
 
     Parameters:
     batch_name_from_vendor: The vendor batch name to audit.
@@ -218,9 +251,9 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
             "",
             f"Audit Status: {audit_message}",
             "",
-            "Output files:",
-            f"  - {report_path}",
-            f"  - {lims_path}",
+            "Attached files:",
+            os.path.basename(report_path),
+            os.path.basename(lims_path),
             "",
             "This is an automated notification from the OCS Submission Capsule",
         ]
@@ -230,5 +263,6 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
         email=notify_email,
         subject=subject,
         body=body,
+        attachment_paths=[report_path, lims_path],
     )
     logger.info(f"Email sent via SES. Message ID: {message_id}")
