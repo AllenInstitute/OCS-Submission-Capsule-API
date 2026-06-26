@@ -217,9 +217,9 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
             "",
             f"Audit Status: {audit_message}",
             "",
-            "Attached:",
-            f"  - {os.path.basename(report_path)}",
-            f"  - {os.path.basename(lims_path)}",
+            "Output files:",
+            f"  - {report_path}",
+            f"  - {lims_path}",
             "",
             "This is an automated notification from the OCS Submission Capsule",
         ]

@@ -11,7 +11,7 @@ The system is designed to scale efficiently, supporting hundreds to thousands of
 
 In addition to daily processing, this codebase simplifies backfill workflows for historical FASTQ samples that need to be reprocessed through OCS. Previously, backfills were executed using custom Bash scripts, making it difficult to track configurations, execution history, and reproducibility. This codebase addresses those challenges by generating a job manifest for every run. The manifest records submitted jobs, failed jobs, and all parameters used to construct each job command, ensuring complete traceability and reproducibility of OCS submissions.
 
-There is also a Audit feature that queries the LIMS database for a given batch name from vendor. It checks that all required metadata fields are present, and emails a copy of any failed flags found.
+There is also an Audit feature that queries the LIMS database for a given batch name from vendor. It checks that all required metadata fields are present, writes CSV reports for any failed flags, and emails a plain-text summary.
 
 The codebase is lastly highly configurable. New alignment and post-alignment workflows can be added through a centralized configuration file, enabling the system to adapt to evolving pipeline requirements without requiring significant code changes.
 
@@ -137,7 +137,7 @@ Input (exporter CSV / batch name / FASTQ names)
 ┌─────────────────────────┐
 │  Write Manifest         │  ocs_job_commands_manifest.json
 │  Send Email             │  AWS SES summary
-│  Run Audit (optional)   │  LIMS CSV + audit email
+│  Run Audit (optional)   │  LIMS CSV reports + summary email
 └─────────────────────────┘
 ```
 
@@ -181,7 +181,7 @@ ocs-submission \
 | `--batch-name-from-vendor` | No | Batch Name From Vendor |
 | `--fastq-names` | No | One or more Fastq Names |
 | `--force-submission` | No | Force `alignment` or `post-alignment` regardless of current status |
-| `--email`, `-e` | No | Email to send notifications too |
+| `--email`, `-e` | No | Email for OCS job notifications and run summary emails |
 | `--dry-run` | No | `true` or `false` (default `false`) — log commands without executing |
 | `--audit` | No | `true` or `false` (default `false`) — run LIMS audit for a batch name from vendor |
 | `--config` | No | Path to JSONC config; defaults to included `config.jsonc` |

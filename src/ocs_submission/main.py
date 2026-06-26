@@ -93,7 +93,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--email",
         "-e",
-        help="Email address for job notifications (overrides default user email)",
+        help="Email address for OCS job notifications and run summary emails",
     )
     parser.add_argument(
         "--dry-run",
