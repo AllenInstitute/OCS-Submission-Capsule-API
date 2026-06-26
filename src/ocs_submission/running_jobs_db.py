@@ -208,8 +208,7 @@ def update_job_status(fastq_name: str, running_db_stage_name: str, status: str):
     cursor = conn.cursor()
 
     cursor.execute(
-        "UPDATE running_jobs SET status = %s, updated_at = NOW() "
-        "WHERE fastq_name = %s AND job_type = %s",
+        "UPDATE running_jobs SET status = %s, updated_at = NOW() WHERE fastq_name = %s AND job_type = %s",
         (status, fastq_name, running_db_stage_name),
     )
     conn.commit()

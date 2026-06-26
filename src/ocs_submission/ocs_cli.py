@@ -141,9 +141,7 @@ def get_latest_results(
 
     if fastq_name_list:
         status_columns = [stage.fastq_status_column for stage in Stage]
-        fastq_stage_status_df = pd.DataFrame(
-            "NOT COMPLETED", index=fastq_name_list, columns=status_columns
-        )
+        fastq_stage_status_df = pd.DataFrame("NOT COMPLETED", index=fastq_name_list, columns=status_columns)
         fastq_stage_status_df.index.name = "fastq_name"
 
         async def fetch(stage: Stage, fastq_name: str) -> tuple[str, str, str]:
@@ -174,9 +172,7 @@ def get_latest_results(
             entries = json.loads(execute_ocs_cmd(cmd_list=cmd).stdout.strip())
             for entry in entries:
                 fastq_name = entry["fastq_name"]
-                fastq_stage_status_df.at[fastq_name, stage.fastq_status_column] = (
-                    status_from_entry(entry)
-                )
+                fastq_stage_status_df.at[fastq_name, stage.fastq_status_column] = status_from_entry(entry)
 
         return fastq_stage_status_df
 
@@ -200,9 +196,7 @@ def query_metadata(
     has_fastq_lookup = bool(fastq_name_list)
     has_batch_lookup = bool(batch_name_from_vendor)
     if has_fastq_lookup == has_batch_lookup:
-        raise ValueError(
-            "query_metadata requires exactly one of fastq_name_list or batch_name_from_vendor"
-        )
+        raise ValueError("query_metadata requires exactly one of fastq_name_list or batch_name_from_vendor")
 
     metadata_base_cmd = [
         "ocs",
@@ -274,8 +268,7 @@ def execute_ocs_submission_commands(
     and timestamp columns filled in for submitted jobs.
     """
     submit_indices = ocs_job_commands_df.index[
-        ocs_job_commands_df["align_should_execute"]
-        | ocs_job_commands_df["postalign_should_execute"]
+        ocs_job_commands_df["align_should_execute"] | ocs_job_commands_df["postalign_should_execute"]
     ]
 
     for record_index in submit_indices:
@@ -301,9 +294,7 @@ def execute_ocs_submission_commands(
             )
             time.sleep(poll_interval_hours * 3600)
 
-        ocs_job_commands_df.at[record_index, f"{col}_executed_at"] = datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
+        ocs_job_commands_df.at[record_index, f"{col}_executed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         logger.info(f"Submitting {col} for {fastq_name}: {command}")
 
@@ -319,21 +310,15 @@ def execute_ocs_submission_commands(
                     running_db_stage_name=stage.running_db_stage_name,
                     command=command,
                     demand_id=demand_id,
-                    batch_name_from_vendor=ocs_job_commands_df.at[
-                        record_index, "batch_name_from_vendor"
-                    ],
+                    batch_name_from_vendor=ocs_job_commands_df.at[record_index, "batch_name_from_vendor"],
                 )
                 logger.info(f"Job submitted successfully - Demand ID: {demand_id}")
             else:
-                ocs_job_commands_df.at[record_index, f"{col}_error_message"] = (
-                    "Job submission failed"
-                )
+                ocs_job_commands_df.at[record_index, f"{col}_error_message"] = "Job submission failed"
                 logger.error("Job submission failed")
         except Exception as error:
             ocs_job_commands_df.at[record_index, f"{col}_submission_success"] = False
-            ocs_job_commands_df.at[record_index, f"{col}_error_message"] = (
-                f"Command execution failed: {error}"
-            )
+            ocs_job_commands_df.at[record_index, f"{col}_error_message"] = f"Command execution failed: {error}"
             logger.error(f"Command execution failed: {error}")
 
         spacing = ocs_job_commands_df.at[record_index, f"{col}_spacing"]

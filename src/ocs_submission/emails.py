@@ -154,20 +154,14 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
             outcome = _stage_outcome(fastq_record, stage.ocs_stage_name)
             if outcome is None:
                 continue
-            (success_list if outcome["success"] else failure_list).append(
-                (stage.ocs_stage_name, outcome)
-            )
+            (success_list if outcome["success"] else failure_list).append((stage.ocs_stage_name, outcome))
 
     if not (success_list or failure_list):
         return
 
     batches = ocs_job_commands_df["batch_name_from_vendor"].dropna().unique()
     batch_label = batches[0] if len(batches) == 1 else None
-    subject = (
-        f"OCS Job Submission Summary - Batch: {batch_label}"
-        if batch_label
-        else "OCS Job Submission Summary"
-    )
+    subject = f"OCS Job Submission Summary - Batch: {batch_label}" if batch_label else "OCS Job Submission Summary"
 
     body_part_list = [
         "OCS Submission Summary Notification",
@@ -184,15 +178,13 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
     if success_list:
         body_part_list.extend(["", "Successful Submissions:", "-" * 50])
         body_part_list.extend(
-            _format_block(i, job_type, outcome)
-            for i, (job_type, outcome) in enumerate(success_list, 1)
+            _format_block(i, job_type, outcome) for i, (job_type, outcome) in enumerate(success_list, 1)
         )
 
     if failure_list:
         body_part_list.extend(["", "Failed Submissions:", "-" * 50])
         body_part_list.extend(
-            _format_block(i, job_type, outcome)
-            for i, (job_type, outcome) in enumerate(failure_list, 1)
+            _format_block(i, job_type, outcome) for i, (job_type, outcome) in enumerate(failure_list, 1)
         )
 
     body_part_list.append("")
@@ -215,9 +207,7 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     notify_email: The recipient email address; an empty value is a no-op.
     """
     if not notify_email:
-        logger.info(
-            "Skipping audit email for %s: no notify email provided.", batch_name_from_vendor
-        )
+        logger.info("Skipping audit email for %s: no notify email provided.", batch_name_from_vendor)
         return
 
     lims_data, report, modality = run_audit(batch_name_from_vendor)
@@ -229,9 +219,7 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
 
     subject = f"{modality} Audit Report for {batch_name_from_vendor}"
 
-    has_age_unknown = (
-        not report.empty and "age" in report.columns and (report["age"] == "UNKNOWN").any()
-    )
+    has_age_unknown = not report.empty and "age" in report.columns and (report["age"] == "UNKNOWN").any()
 
     if report.empty or has_age_unknown:
         audit_message = f"No missing {modality} data found."
@@ -239,10 +227,7 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
             audit_message += "\nNote: age contains a literal 'unknown' value."
     else:
         audit_message = f"Missing {modality} data table generated for {batch_name_from_vendor}"
-        logger.warning(
-            f"Missing {modality} data found. "
-            "Please wait till corrected before proceeding with next steps."
-        )
+        logger.warning(f"Missing {modality} data found. Please wait till corrected before proceeding with next steps.")
     body = "\n".join(
         [
             f"LIMS Audit for Batch: {batch_name_from_vendor}",

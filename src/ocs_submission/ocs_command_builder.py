@@ -67,9 +67,7 @@ def select_alignment_command_config(
         if library_prep_matches and organism_matches:
             return command_config
 
-    raise ValueError(
-        f"No {modality} alignment command config found for {library_prep_method_name}"
-    )
+    raise ValueError(f"No {modality} alignment command config found for {library_prep_method_name}")
 
 
 def build_ocs_command_args(
@@ -115,9 +113,7 @@ def build_ocs_command_args(
         "load_name": fastq_record.load_name,
         "email": email,
         "chemistry": chemistry_by_library_prep.get(library_prep_method_name, ""),
-        "probe_set": probe_sets_by_organism.get(organism_common_name, {}).get(
-            library_prep_method_name, ""
-        ),
+        "probe_set": probe_sets_by_organism.get(organism_common_name, {}).get(library_prep_method_name, ""),
         "execution_vcpus": command_template.get("execution_vcpus", ""),
     }
 
@@ -229,9 +225,7 @@ def build_post_alignment_job_command_record(
     postalign_template = config["workflows"][modality]["post_alignment"]
     match = postalign_template.get("match", {})
     library_preps = match.get("library_preps", ["*"])
-    library_prep_matches = (
-        "*" in library_preps or fastq_record.library_prep_method_name in library_preps
-    )
+    library_prep_matches = "*" in library_preps or fastq_record.library_prep_method_name in library_preps
 
     should_execute = False
     command_args = None
@@ -243,10 +237,7 @@ def build_post_alignment_job_command_record(
         and align_status in align_complete_statuses
         and (
             force_submission == "post-alignment"
-            or (
-                postalign_status not in postalign_complete_statuses
-                and postalign_status != "IN_PROGRESS"
-            )
+            or (postalign_status not in postalign_complete_statuses and postalign_status != "IN_PROGRESS")
         )
     ):
         should_execute = True

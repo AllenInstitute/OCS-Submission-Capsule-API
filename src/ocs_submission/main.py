@@ -105,10 +105,7 @@ def parse_args() -> argparse.Namespace:
         "--audit",
         choices=("true", "false"),
         default="false",
-        help=(
-            "Run the LIMS audit each time an alignment command is executed "
-            "(true/false, default: false)"
-        ),
+        help=("Run the LIMS audit each time an alignment command is executed (true/false, default: false)"),
     )
     parser.add_argument(
         "--config",
@@ -156,9 +153,7 @@ def main() -> None:
     elif args.fastq_names:
         fastq_records_df = load_fastq_records_df_from_fastq_names(args.fastq_names)
     else:
-        raise ValueError(
-            "Provide one of --ocs-tracker-exporter, --batch-name-from-vendor, or --fastq-names."
-        )
+        raise ValueError("Provide one of --ocs-tracker-exporter, --batch-name-from-vendor, or --fastq-names.")
 
     if fastq_records_df.empty:
         logger.info(

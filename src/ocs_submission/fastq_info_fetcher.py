@@ -41,8 +41,7 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     if "Batch Name From Vendor" not in fastq_records_df.columns:
         metadata_df = query_metadata(fastq_name_list=fastq_records_df["Fastq Name"].tolist())
         batch_name_from_vendor_list = [
-            metadata_df.loc[fastq_name, "batch_name_from_vendor"]
-            for fastq_name in fastq_records_df["Fastq Name"]
+            metadata_df.loc[fastq_name, "batch_name_from_vendor"] for fastq_name in fastq_records_df["Fastq Name"]
         ]
         fastq_records_df["Batch Name From Vendor"] = batch_name_from_vendor_list
 
@@ -57,18 +56,14 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
         "Alignment": "align_status",
         "Post Alignment": "postalign_status",
     }
-    fastq_records_df = fastq_records_df[list(exporter_column_mapping)].rename(
-        columns=exporter_column_mapping
-    )
+    fastq_records_df = fastq_records_df[list(exporter_column_mapping)].rename(columns=exporter_column_mapping)
 
     for index, fastq_record in fastq_records_df.iterrows():
         for stage in (Stage.ALIGNMENT, Stage.POST_ALIGNMENT):
             if pd.isna(fastq_record[stage.fastq_status_column]):
-                fastq_records_df.at[index, stage.fastq_status_column] = (
-                    running_jobs_db.check_job_status(
-                        fastq_name=fastq_record["fastq_name"],
-                        stage=stage,
-                    )
+                fastq_records_df.at[index, stage.fastq_status_column] = running_jobs_db.check_job_status(
+                    fastq_name=fastq_record["fastq_name"],
+                    stage=stage,
                 )
 
     return fastq_records_df
@@ -125,9 +120,7 @@ def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame
         batch_name_from_vendor = unique_batch_names_from_vendor[0]
         fastq_stage_status_df = get_latest_results(batch_name_from_vendor=batch_name_from_vendor)
     else:
-        fastq_stage_status_df = get_latest_results(
-            fastq_name_list=fastq_records_df["fastq_name"].tolist()
-        )
+        fastq_stage_status_df = get_latest_results(fastq_name_list=fastq_records_df["fastq_name"].tolist())
 
     fastq_records_df = fastq_records_df.join(fastq_stage_status_df, how="left")
 

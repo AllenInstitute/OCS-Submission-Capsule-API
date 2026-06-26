@@ -37,9 +37,9 @@ class Auditor:
             rule_output = dataset[rule.columns].apply(rule.condition)
             if callable(rule.ignore):
                 rule_output.loc[rule.ignore(dataset), rule.columns] = False
-            rule_output = pd.concat(
-                [dataset[id_column_list], rule_output], join="inner", axis=1
-            ).loc[rule_output.any(axis=1)]
+            rule_output = pd.concat([dataset[id_column_list], rule_output], join="inner", axis=1).loc[
+                rule_output.any(axis=1)
+            ]
             missing_data_list.append(rule_output)
 
         for rule, rule_output in zip(self.rules, missing_data_list):
@@ -79,9 +79,7 @@ class RTXAuditor(Auditor):
                 ["injection_method", "injection_roi", "injection_materials"],
                 pd.isna,
                 lambda df: (
-                    df[["injection_method", "injection_roi", "injection_materials"]]
-                    .isna()
-                    .all(axis=1)
+                    df[["injection_method", "injection_roi", "injection_materials"]].isna().all(axis=1)
                     & ~df["studies"].str.contains("Enhancer|Zirong|Nelson", na=False)
                     & ~df["studies"].isin(
                         [
@@ -100,8 +98,7 @@ class RTXAuditor(Auditor):
                 "age",
                 lambda col: col.str.lower() == "unknown",
                 tf_values=[
-                    "UNKNOWN (flagged for review - age may be genuinely unknown, "
-                    "or updated later)",
+                    "UNKNOWN (flagged for review - age may be genuinely unknown, or updated later)",
                     "Present",
                 ],
             ),
@@ -136,18 +133,13 @@ class MTXAuditor(Auditor):
             Rule(
                 ["injection_method", "injection_roi", "injection_materials"],
                 pd.isna,
-                lambda df: (
-                    df[["injection_method", "injection_roi", "injection_materials"]]
-                    .isna()
-                    .all(axis=1)
-                ),
+                lambda df: df[["injection_method", "injection_roi", "injection_materials"]].isna().all(axis=1),
             ),
             Rule(
                 "age",
                 lambda col: col.str.lower() == "unknown",
                 tf_values=[
-                    "UNKNOWN (flagged for review - age may be genuinely unknown, "
-                    "or updated later)",
+                    "UNKNOWN (flagged for review - age may be genuinely unknown, or updated later)",
                     "Present",
                 ],
             ),
@@ -180,11 +172,7 @@ def run_audit(batch_name_from_vendor: str) -> tuple[pd.DataFrame, pd.DataFrame, 
     """
     prefix = batch_name_from_vendor.split("-")[0][:3]
 
-    sql_file = (
-        f"{script_dir}/lims_rtx_ocs.sql"
-        if prefix in ("RTX", "10X")
-        else f"{script_dir}/lims_mtx_ocs.sql"
-    )
+    sql_file = f"{script_dir}/lims_rtx_ocs.sql" if prefix in ("RTX", "10X") else f"{script_dir}/lims_mtx_ocs.sql"
     auditor = RTXAuditor() if prefix in ("RTX", "10X") else MTXAuditor()
     modality = prefix if prefix in ("RTX", "10X") else "MTX"
 
