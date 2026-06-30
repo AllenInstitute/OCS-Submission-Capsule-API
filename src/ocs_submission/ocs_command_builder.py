@@ -75,9 +75,7 @@ def select_command_config(
         organisms = match.get("organisms")
 
         # Omit organisms in config to match any organism.
-        if library_prep_method_name in library_preps and (
-            organisms is None or organism_common_name in organisms
-        ):
+        if library_prep_method_name in library_preps and (organisms is None or organism_common_name in organisms):
             return command_config
 
     raise ValueError(f"No {modality} {command_config_label} command config found for {library_prep_method_name}")
