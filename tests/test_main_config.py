@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ocs_submission.main import load_jsonc_config
+from ocs_submission.main import CONFIG_PATH, load_jsonc_config
+from ocs_submission.ocs_command_builder import COMMAND_CONFIG_BY_STAGE
 
 
 def _write(tmp_path: Path, text: str) -> str:
@@ -59,3 +60,19 @@ def test_single_organism_key_is_preserved(tmp_path):
     )
     config = load_jsonc_config(config_path)
     assert set(config["references"]) == {"human"}
+
+
+def test_default_config_matches_command_config_schema():
+    config = load_jsonc_config(CONFIG_PATH)
+
+    for modality, workflow in config["workflows"].items():
+        assert "post_alignment" not in workflow
+
+        for command_config_field, _ in COMMAND_CONFIG_BY_STAGE.values():
+            assert command_config_field in workflow
+
+            for command_config in workflow[command_config_field]:
+                match = command_config["match"]
+                assert match["library_preps"]
+                assert "*" not in match["library_preps"]
+                assert match.get("organisms") != ["*"]

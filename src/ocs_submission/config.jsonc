@@ -5,13 +5,13 @@
   // Alignment — workflows.<MODALITY>.alignment_command_configs
   //   1. Add a config object with name, match, command, arguments, and spacing.
   //   2. In match, set library_preps and optionally organisms.
-  //      Use "*" to match any value, or list specific names to restrict.
+  //      Omit organisms to match any organism, or list specific names to restrict.
   //   3. Put more specific configs before general ones — first match wins.
   //
-  // Post-alignment QC — workflows.<MODALITY>.post_alignment
-  //   1. Set command, arguments, and spacing.
-  //   2. Optionally add match.library_preps to limit which library preps run QC.
-  //      Omit match (or use "*") to run for all library preps in that modality.
+  // Post-alignment QC — workflows.<MODALITY>.post_alignment_command_configs
+  //   1. Add a config object with name, match, command, arguments, and spacing.
+  //   2. In match, set library_preps to the specific library preps that run QC.
+  //   3. Put more specific configs before general ones — first match wins.
   //
   // Argument values support these placeholders:
   // - {reference_name}
@@ -128,9 +128,6 @@
           "match": {
             "library_preps": [
               "10xMultX_GEX"
-            ],
-            "organisms": [
-              "*"
             ]
           },
           "command": [
@@ -172,9 +169,6 @@
           "match": {
             "library_preps": [
               "10xRSeq_Mult"
-            ],
-            "organisms": [
-              "*"
             ]
           },
           "command": [
@@ -208,43 +202,82 @@
           "spacing": 180
         }
       ],
-      "post_alignment": {
-        "match": {
-          "library_preps": [
-            "10xMultX_GEX",
-            "10xRSeq_Mult"
-          ]
+      "post_alignment_command_configs": [
+        {
+          "name": "10xMultX_GEX",
+          "match": {
+            "library_preps": [
+              "10xMultX_GEX"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "postalign",
+            "tenx-arc"
+          ],
+          "arguments": [
+            {
+              "flag": "--asset-name",
+              "value": "10x_multiome_qc"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "1.0.1"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 60
         },
-        "command": [
-          "ocs",
-          "fastqs",
-          "postalign",
-          "tenx-arc"
-        ],
-        "arguments": [
-          {
-            "flag": "--asset-name",
-            "value": "10x_multiome_qc"
+        {
+          "name": "10xRSeq_Mult",
+          "match": {
+            "library_preps": [
+              "10xRSeq_Mult"
+            ]
           },
-          {
-            "flag": "--asset-tag",
-            "value": "1.0.0"
-          },
-          {
-            "flag": "--load-names",
-            "value": "{load_name}"
-          },
-          {
-            "flag": "--notify-on",
-            "value": "FAILED"
-          },
-          {
-            "flag": "--notify",
-            "value": "{email}"
-          }
-        ],
-        "spacing": 60
-      }
+          "command": [
+            "ocs",
+            "fastqs",
+            "postalign",
+            "tenx-arc"
+          ],
+          "arguments": [
+            {
+              "flag": "--asset-name",
+              "value": "10x_multiome_qc"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "1.0.0"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 60
+        }
+      ]
     },
     "RTX": {
       "alignment_command_configs": [
@@ -259,9 +292,6 @@
               "10Xv3.1_LT",
               "10Xv3",
               "10Xv2"
-            ],
-            "organisms": [
-              "*"
             ]
           },
           "command": [
@@ -308,9 +338,6 @@
             "library_preps": [
               "10xV3.1_HT_CP",
               "10xV3.1_HT_CP-BC"
-            ],
-            "organisms": [
-              "*"
             ]
           },
           "command": [
@@ -356,9 +383,6 @@
           "match": {
             "library_preps": [
               "10xV4_PX"
-            ],
-            "organisms": [
-              "*"
             ]
           },
           "command": [
@@ -404,9 +428,6 @@
           "match": {
             "library_preps": [
               "10xV4"
-            ],
-            "organisms": [
-              "*"
             ]
           },
           "command": [
@@ -453,9 +474,6 @@
             "library_preps": [
               "10xV4_FX4",
               "10xV4_FX4-cps"
-            ],
-            "organisms": [
-              "*"
             ]
           },
           "command": [
@@ -506,37 +524,57 @@
           "spacing": 180
         }
       ],
-      "post_alignment": {
-        "command": [
-          "ocs",
-          "fastqs",
-          "postalign",
-          "tenx-rnaseq"
-        ],
-        "arguments": [
-          {
-            "flag": "--asset-name",
-            "value": "tenx_rnaseq_qc"
+      "post_alignment_command_configs": [
+        {
+          "name": "standard",
+          "match": {
+            "library_preps": [
+              "10xV3.1D",
+              "10xRseq_Mult_noATAC",
+              "10xV3.1_HT",
+              "10Xv3.1",
+              "10Xv3.1_LT",
+              "10Xv3",
+              "10Xv2",
+              "10xV3.1_HT_CP",
+              "10xV3.1_HT_CP-BC",
+              "10xV4_PX",
+              "10xV4",
+              "10xV4_FX4",
+              "10xV4_FX4-cps"
+            ]
           },
-          {
-            "flag": "--asset-tag",
-            "value": "latest"
-          },
-          {
-            "flag": "--load-names",
-            "value": "{load_name}"
-          },
-          {
-            "flag": "--notify-on",
-            "value": "FAILED"
-          },
-          {
-            "flag": "--notify",
-            "value": "{email}"
-          }
-        ],
-        "spacing": 60
-      }
+          "command": [
+            "ocs",
+            "fastqs",
+            "postalign",
+            "tenx-rnaseq"
+          ],
+          "arguments": [
+            {
+              "flag": "--asset-name",
+              "value": "tenx_rnaseq_qc"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "latest"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 60
+        }
+      ]
     },
     "RFX": {
       "alignment_command_configs": [
@@ -547,9 +585,6 @@
               "10xV4_FX16",
               "10xV4_FX16-TK",
               "10xV4_FX16-TK_BC"
-            ],
-            "organisms": [
-              "*"
             ]
           },
           "command": [
@@ -600,37 +635,47 @@
           "spacing": 180
         }
       ],
-      "post_alignment": {
-        "command": [
-          "ocs",
-          "fastqs",
-          "postalign",
-          "tenx-rnaseq"
-        ],
-        "arguments": [
-          {
-            "flag": "--asset-name",
-            "value": "tenx_rnaseq_qc"
+      "post_alignment_command_configs": [
+        {
+          "name": "10xV4_FX16",
+          "match": {
+            "library_preps": [
+              "10xV4_FX16",
+              "10xV4_FX16-TK",
+              "10xV4_FX16-TK_BC"
+            ]
           },
-          {
-            "flag": "--asset-tag",
-            "value": "latest"
-          },
-          {
-            "flag": "--load-names",
-            "value": "{load_name}"
-          },
-          {
-            "flag": "--notify-on",
-            "value": "FAILED"
-          },
-          {
-            "flag": "--notify",
-            "value": "{email}"
-          }
-        ],
-        "spacing": 60
-      }
+          "command": [
+            "ocs",
+            "fastqs",
+            "postalign",
+            "tenx-rnaseq"
+          ],
+          "arguments": [
+            {
+              "flag": "--asset-name",
+              "value": "tenx_rnaseq_qc"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "latest"
+            },
+            {
+              "flag": "--load-names",
+              "value": "{load_name}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "spacing": 60
+        }
+      ]
     }
   },
   "job_settings": {
@@ -639,6 +684,7 @@
     // instead of skipping the job. Default 1.
     "poll_interval_hours": 1
   },
+  // List of literal OCS completed status labels.
   "status_mappings": {
     "ingest_complete": [
       "INGEST_COMPLETE",

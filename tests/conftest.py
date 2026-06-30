@@ -47,7 +47,6 @@ def config() -> dict[str, Any]:
                         "name": "default",
                         "match": {
                             "library_preps": ["10xMultX_GEX", "10xRSeq_Mult"],
-                            "organisms": ["*"],
                         },
                         "command": ["ocs", "fastqs", "align", "tenx-arc"],
                         "arguments": [
@@ -58,15 +57,17 @@ def config() -> dict[str, Any]:
                         "spacing": 180,
                     }
                 ],
-                "post_alignment": {
-                    "match": {"library_preps": ["10xMultX_GEX", "10xRSeq_Mult"]},
-                    "command": ["ocs", "fastqs", "postalign", "tenx-arc"],
-                    "arguments": [
-                        {"flag": "--asset-name", "value": "10x_multiome_qc"},
-                        {"flag": "--load-names", "value": "{load_name}"},
-                    ],
-                    "spacing": 60,
-                },
+                "post_alignment_command_configs": [
+                    {
+                        "match": {"library_preps": ["10xMultX_GEX", "10xRSeq_Mult"]},
+                        "command": ["ocs", "fastqs", "postalign", "tenx-arc"],
+                        "arguments": [
+                            {"flag": "--asset-name", "value": "10x_multiome_qc"},
+                            {"flag": "--load-names", "value": "{load_name}"},
+                        ],
+                        "spacing": 60,
+                    },
+                ],
             },
         },
         "status_mappings": {

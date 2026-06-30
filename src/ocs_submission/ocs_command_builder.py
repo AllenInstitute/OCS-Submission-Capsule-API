@@ -4,6 +4,11 @@ import pandas as pd
 
 from .stages import Stage
 
+COMMAND_CONFIG_BY_STAGE = {
+    Stage.ALIGNMENT: ("alignment_command_configs", "alignment"),
+    Stage.POST_ALIGNMENT: ("post_alignment_command_configs", "post-alignment"),
+}
+
 JOB_RECORD_FIELDS = (
     "should_execute",
     "command_args",
@@ -35,39 +40,47 @@ COMMAND_RECORD_COLUMNS = [
 ]
 
 
-def select_alignment_command_config(
+def select_command_config(
     config: dict,
     modality: str,
+    stage: Stage,
     library_prep_method_name: str,
     organism_common_name: str,
 ) -> dict:
     """
-    Pick the first alignment command template that matches a fastq sample's library prep
+    Pick the first command template that matches a fastq sample's stage, library prep,
     and organism.
 
     Parameters:
     config: The OCS workflow configuration.
     modality: The modality (RTX, MTX, RFX) to look up templates for.
+    stage: The OCS stage to look up templates for.
     library_prep_method_name: The sample's library prep method.
     organism_common_name: The sample's organism.
 
     Returns:
     The matching command template from the config. If nothing matches, an error is raised.
     """
-    alignment_command_configs = config["workflows"][modality]["alignment_command_configs"]
+    workflow = config["workflows"][modality]
+    command_config_field, command_config_label = COMMAND_CONFIG_BY_STAGE[stage]
+    command_configs = workflow[command_config_field]
 
-    for command_config in alignment_command_configs:
-        match = command_config.get("match", {})
-        library_preps = match.get("library_preps", ["*"])
-        organisms = match.get("organisms", ["*"])
+    for command_config in command_configs:
+        try:
+            match = command_config["match"]
+            library_preps = match["library_preps"]
+        except KeyError as error:
+            raise KeyError("library_preps not listed in the config file") from error
 
-        library_prep_matches = "*" in library_preps or library_prep_method_name in library_preps
-        organism_matches = "*" in organisms or organism_common_name in organisms
+        organisms = match.get("organisms")
 
-        if library_prep_matches and organism_matches:
+        # Omit organisms in config to match any organism.
+        if library_prep_method_name in library_preps and (
+            organisms is None or organism_common_name in organisms
+        ):
             return command_config
 
-    raise ValueError(f"No {modality} alignment command config found for {library_prep_method_name}")
+    raise ValueError(f"No {modality} {command_config_label} command config found for {library_prep_method_name}")
 
 
 def build_ocs_command_args(
@@ -167,9 +180,10 @@ def build_alignment_job_command_record(
         should_execute = True
 
     if should_execute:
-        align_command_config = select_alignment_command_config(
+        align_command_config = select_command_config(
             config=config,
             modality=modality,
+            stage=Stage.ALIGNMENT,
             library_prep_method_name=fastq_record.library_prep_method_name,
             organism_common_name=fastq_record.organism_common_name,
         )
@@ -222,18 +236,20 @@ def build_post_alignment_job_command_record(
 
     align_status = fastq_record.align_status
     postalign_status = fastq_record.postalign_status
-    postalign_template = config["workflows"][modality]["post_alignment"]
-    match = postalign_template.get("match", {})
-    library_preps = match.get("library_preps", ["*"])
-    library_prep_matches = "*" in library_preps or fastq_record.library_prep_method_name in library_preps
+    postalign_template = select_command_config(
+        config=config,
+        modality=modality,
+        stage=Stage.POST_ALIGNMENT,
+        library_prep_method_name=fastq_record.library_prep_method_name,
+        organism_common_name=fastq_record.organism_common_name,
+    )
 
     should_execute = False
     command_args = None
     spacing = None
 
     if (
-        library_prep_matches
-        and not alignment_should_execute
+        not alignment_should_execute
         and align_status in align_complete_statuses
         and (
             force_submission == "post-alignment"
@@ -241,8 +257,6 @@ def build_post_alignment_job_command_record(
         )
     ):
         should_execute = True
-
-    if should_execute:
         command_args, spacing = build_ocs_command_args(
             config=config,
             fastq_record=fastq_record,
