@@ -14,20 +14,20 @@ The codebase is lastly highly configurable. New alignment and post-alignment wor
 
 ## Table of Contents
 
-* [Quickstart Guide](#quickstart-guide)
-* [What This Capsule Does](#what-this-capsule-does)
-* [Workflow Overview](#workflow-overview)
-* [Input Modes](#input-modes)
-* [Command-Line Options](#command-line-options)
+* [Getting started](#getting-started)
+* [What it does](#what-it-does)
+* [How it works](#how-it-works)
+* [Inputs](#inputs)
+* [CLI options](#cli-options)
 * [Configuration](#configuration)
 * [Outputs](#outputs)
-* [Environment Variables](#environment-variables)
-* [Package Layout](#package-layout)
+* [Environment](#environment)
+* [Project layout](#project-layout)
 * [Development](#development)
-* [Authors and History](#authors-and-history)
+* [Authors](#authors)
 * [Acknowledgments](#acknowledgments)
 
-## Quickstart Guide
+## Getting started
 
 Follow these steps to run the OCS Submission Capsule:
 
@@ -87,7 +87,7 @@ Follow these steps to run the OCS Submission Capsule:
 
 > **Note:** Requires Python 3.12+ and the `ocs` CLI available on `PATH`.
 
-## What This Capsule Does
+## What it does
 
 - Checks ingest, alignment, and post-alignment status for each Fastq sample on OCS.
 - Loads FASTQ metadata from an OCS Tracker exporter CSV, a batch name from vendor, or list of fastq names.
@@ -99,7 +99,7 @@ Follow these steps to run the OCS Submission Capsule:
 - Writes a JSON manifest of all planned and attempted commands.
 - Sends summary emails for successful and failed submissions via AWS SES.
 
-## Workflow Overview
+## How it works
 
 The capsule follows a linear pipeline: it loads FASTQ samples metadata, checks where each sample stands in the ingest → align → postalign pipeline, builds the appropriate OCS commands, and can submit progress a fastq sample into the next stage in the pipeline. When `--audit true` is passed, it also queries the LIMS database to verify that sample metadata is complete and flags any missing fields before proceeding.
 ```
@@ -136,11 +136,11 @@ Input (exporter CSV / batch name / FASTQ names)
 └─────────────────────────┘
 ```
 
-## Input Modes
+## Inputs
 
 Exactly one of the following is required:
 
-### Mode 1 — OCS Tracker Exporter
+### OCS Tracker Export CSV
 
 ```bash
 ocs-submission \
@@ -149,7 +149,7 @@ ocs-submission \
   --dry-run true
 ```
 
-### Mode 2 — Batch Name From Vendor
+### Batch name from vendor
 
 ```bash
 ocs-submission \
@@ -158,7 +158,7 @@ ocs-submission \
   --dry-run true
 ```
 
-### Mode 3 — List of Fastq Names/Exponent Component Name
+### Fastq names
 
 ```bash
 ocs-submission \
@@ -167,7 +167,7 @@ ocs-submission \
   --dry-run true
 ```
 
-## Command-Line Options
+## CLI options
 
 | Option | Required | Description |
 |---|---|---|
@@ -210,7 +210,7 @@ Command templates support placeholders such as `{reference_name}`, `{load_name}`
 | `<batch>_<modality>_missing_data.csv` | `/results` or current directory | Missing LIMS data report (when `--audit true`) |
 | `<batch>_lims_pull.csv` | `/results` or current directory | Full LIMS pull for the batch (when `--audit true`) |
 
-## Environment Variables
+## Environment
 
 | Variable | Used by | Purpose |
 |---|---|---|
@@ -220,7 +220,7 @@ Command templates support placeholders such as `{reference_name}`, `{load_name}`
 
 > Environment variables set during Code Ocean's post-install phase are not automatically available in later capsule runs or terminal sessions. Make sure they are set in the runtime environment.
 
-## Package Layout
+## Project layout
 
 ```
 src/ocs_submission/
@@ -274,7 +274,7 @@ uv lock
 
 The test suite covers command-building and config logic and does not require a live OCS connection, database, or SES access.
 
-## Authors and History
+## Authors
 
 * Beagan Nguy — Development
 
