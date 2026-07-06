@@ -13,6 +13,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - Per-library-prep post-alignment command configs in `config.jsonc`
 - Config-loop tests and manifest schema checks
+- Tag-driven release workflow that verifies the tag against `pyproject.toml`
+  and `CHANGELOG.md`, runs the tests, and publishes a GitHub release with notes
+  from the changelog (`scripts/check_release_version.py`)
 
 ### Changed
 
