@@ -1,3 +1,9 @@
+# OCS Submission Capsule
+
+[![Lint and Test](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/actions/workflows/lint-and-test.yml/badge.svg)](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/actions/workflows/lint-and-test.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![Version](https://img.shields.io/github/v/tag/AllenInstitute/OCS-Submission-Capsule-API?label=version&color=informational)](CHANGELOG.md)
+
 ## Overview
 
 The purpose of this codebase is to provide bioinformatics analysts with a user-friendly interface, built on Code Ocean, for submitting and managing ocs jobs.
@@ -24,6 +30,7 @@ The codebase is lastly highly configurable. New alignment and post-alignment wor
 * [Environment](#environment)
 * [Project layout](#project-layout)
 * [Development](#development)
+* [Changelog](#changelog)
 * [Authors](#authors)
 * [Acknowledgments](#acknowledgments)
 
@@ -273,6 +280,24 @@ uv lock
 ```
 
 The test suite covers command-building and config logic and does not require a live OCS connection, database, or SES access.
+
+### Releases
+
+Releases are tag-driven. Pushing a `vMAJOR.MINOR.PATCH` tag triggers the **Release** workflow (`.github/workflows/release.yml`), which verifies the tag, runs the tests, and publishes a GitHub release with notes taken from `CHANGELOG.md`.
+
+To cut a release:
+
+1. In a PR, bump `version` in `pyproject.toml` and move the `## [Unreleased]` entries into a new `## [x.y.z] - YYYY-MM-DD` section in [CHANGELOG.md](CHANGELOG.md).
+2. After it merges to `main`, tag that commit and push the tag:
+   ```bash
+   git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0
+   ```
+
+The workflow fails the release if the tag does not match `pyproject.toml` or has no matching `CHANGELOG.md` section (`scripts/check_release_version.py`), so the tag, the package version, and the changelog can never drift apart.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## Authors
 
