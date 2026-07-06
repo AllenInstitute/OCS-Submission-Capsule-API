@@ -322,10 +322,6 @@ does not match `pyproject.toml`, or has no matching `CHANGELOG.md` section
 (`scripts/check_release_version.py`). That keeps the release tag, package
 version, changelog, and published GitHub release in sync.
 
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md).
-
 ## Authors
 
 * Beagan Nguy — Development
