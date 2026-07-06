@@ -234,13 +234,6 @@ def build_post_alignment_job_command_record(
 
     align_status = fastq_record.align_status
     postalign_status = fastq_record.postalign_status
-    postalign_template = select_command_config(
-        config=config,
-        modality=modality,
-        stage=Stage.POST_ALIGNMENT,
-        library_prep_method_name=fastq_record.library_prep_method_name,
-        organism_common_name=fastq_record.organism_common_name,
-    )
 
     should_execute = False
     command_args = None
@@ -255,6 +248,13 @@ def build_post_alignment_job_command_record(
         )
     ):
         should_execute = True
+        postalign_template = select_command_config(
+            config=config,
+            modality=modality,
+            stage=Stage.POST_ALIGNMENT,
+            library_prep_method_name=fastq_record.library_prep_method_name,
+            organism_common_name=fastq_record.organism_common_name,
+        )
         command_args, spacing = build_ocs_command_args(
             config=config,
             fastq_record=fastq_record,

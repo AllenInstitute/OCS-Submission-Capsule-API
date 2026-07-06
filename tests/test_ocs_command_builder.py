@@ -408,6 +408,78 @@ def test_post_alignment_requires_matching_library_prep(config, make_fastq_record
         )
 
 
+@pytest.mark.parametrize(
+    "align_status, postalign_status, alignment_should_execute",
+    [
+        pytest.param("NOT COMPLETED", "NOT COMPLETED", False, id="alignment-not-complete"),
+        pytest.param("COMPLETED", "NOT COMPLETED", True, id="alignment-scheduled-this-pass"),
+        pytest.param("COMPLETED", "COMPLETED", False, id="postalignment-complete"),
+        pytest.param("COMPLETED", "IN_PROGRESS", False, id="postalignment-in-progress"),
+    ],
+)
+def test_post_alignment_does_not_require_matching_library_prep_when_not_scheduled(
+    config,
+    make_fastq_record,
+    align_status,
+    postalign_status,
+    alignment_should_execute,
+):
+    record = make_fastq_record(
+        align_status=align_status,
+        postalign_status=postalign_status,
+        library_prep_method_name="unsupported_prep",
+    )
+
+    result = build_post_alignment_job_command_record(
+        fastq_record=record,
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission=None,
+        alignment_should_execute=alignment_should_execute,
+    )
+
+    assert result["postalign_should_execute"] is False
+    _assert_job_not_scheduled(result, "postalign")
+
+
+def test_build_ocs_job_submission_command_allows_alignment_without_post_alignment_config(config, make_fastq_record):
+    config["workflows"]["MTX"]["alignment_command_configs"][0]["match"]["library_preps"].append("align_only_prep")
+    record = make_fastq_record(library_prep_method_name="align_only_prep")
+
+    result = build_ocs_job_submission_command(
+        fastq_records_df=pd.DataFrame([vars(record)]),
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission=None,
+        dry_run=True,
+    )
+
+    assert bool(result.at[0, "align_should_execute"]) is True
+    assert bool(result.at[0, "postalign_should_execute"]) is False
+    assert result.at[0, "align_command_args"] == EXPECTED_ALIGNMENT_COMMAND_ARGS
+    assert result.at[0, "postalign_command_args"] is None
+
+
+def test_expected_manifest_row_matches_command_record_schema():
+    """Pin the test helper to the production manifest schema.
+
+    ``_expected_manifest_row`` mirrors ``COMMAND_RECORD_COLUMNS`` by hand so the manifest
+    assertions stay readable with explicit expected values. But ``build_ocs_job_submission_command``
+    selects columns via ``columns=COMMAND_RECORD_COLUMNS``, so a column added to the source (e.g. a
+    new ``JOB_RECORD_FIELDS`` entry) but missing from the helper would slip through the frame
+    comparisons as an untested ``NaN``. This guard turns that silent drift into a loud failure.
+    """
+    expected_columns = set(COMMAND_RECORD_COLUMNS)
+    helper_columns = set(_expected_manifest_row())
+    assert helper_columns == expected_columns, (
+        "_expected_manifest_row drifted from COMMAND_RECORD_COLUMNS. "
+        f"Missing from helper: {sorted(expected_columns - helper_columns)}. "
+        f"Extra in helper: {sorted(helper_columns - expected_columns)}."
+    )
+
+
 def test_build_ocs_job_submission_command_returns_expected_manifest_row(config, make_fastq_record):
     record = make_fastq_record(organism_common_name="mouse")
 
