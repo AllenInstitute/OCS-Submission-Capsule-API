@@ -1,6 +1,6 @@
 # OCS Submission Capsule
 
-[![Lint and Test](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/actions/workflows/lint-and-test.yml/badge.svg)](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/actions/workflows/lint-and-test.yml)
+[![CI](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/actions/workflows/ci.yml/badge.svg)](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![Release](https://img.shields.io/github/v/release/AllenInstitute/OCS-Submission-Capsule-API?label=release&color=informational)](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/releases/latest)
 
