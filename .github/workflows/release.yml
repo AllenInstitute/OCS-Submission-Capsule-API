@@ -16,6 +16,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -25,8 +27,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v8.0.0
 
+      - name: Fetch main for release validation
+        run: git fetch --no-tags origin main:refs/remotes/origin/main
+
       - name: Verify tag matches pyproject.toml and CHANGELOG
-        run: uv run --python 3.12 python scripts/check_release_version.py "${GITHUB_REF_NAME}"
+        run: >
+          uv run --python 3.12 python scripts/check_release_version.py
+          "${GITHUB_REF_NAME}" --require-ancestor-ref origin/main
 
       - name: Install project and dev dependencies (from lockfile)
         run: uv sync --extra dev --frozen

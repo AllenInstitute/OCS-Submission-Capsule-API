@@ -2,7 +2,7 @@
 
 [![Lint and Test](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/actions/workflows/lint-and-test.yml/badge.svg)](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/actions/workflows/lint-and-test.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/github/v/tag/AllenInstitute/OCS-Submission-Capsule-API?label=version&color=informational)](CHANGELOG.md)
+[![Release](https://img.shields.io/github/v/release/AllenInstitute/OCS-Submission-Capsule-API?label=release&color=informational)](https://github.com/AllenInstitute/OCS-Submission-Capsule-API/releases/latest)
 
 ## Overview
 
@@ -287,13 +287,40 @@ Releases are tag-driven. Pushing a `vMAJOR.MINOR.PATCH` tag triggers the **Relea
 
 To cut a release:
 
-1. In a PR, bump `version` in `pyproject.toml` and move the `## [Unreleased]` entries into a new `## [x.y.z] - YYYY-MM-DD` section in [CHANGELOG.md](CHANGELOG.md).
-2. After it merges to `main`, tag that commit and push the tag:
+1. Start from the latest `main` and create a release branch:
    ```bash
-   git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0
+   git checkout main
+   git pull origin main
+   git checkout -b release/v0.2.0
+   ```
+2. On the release branch, bump `version` in `pyproject.toml`:
+   ```toml
+   version = "0.2.0"
+   ```
+3. In [CHANGELOG.md](CHANGELOG.md), move the release notes out of
+   `## [Unreleased]` and into a dated release section:
+   ```md
+   ## [0.2.0] - YYYY-MM-DD
+   ```
+4. Commit the release prep and open a PR into `main`:
+   ```bash
+   git add pyproject.toml CHANGELOG.md
+   git commit -m "chore(release): prepare v0.2.0"
+   git push -u origin release/v0.2.0
+   ```
+5. After the PR merges, pull the updated `main`, tag that merged commit, and
+   push the tag:
+   ```bash
+   git checkout main
+   git pull origin main
+   git tag -a v0.2.0 -m "v0.2.0"
+   git push origin v0.2.0
    ```
 
-The workflow fails the release if the tag does not match `pyproject.toml` or has no matching `CHANGELOG.md` section (`scripts/check_release_version.py`), so the tag, the package version, and the changelog can never drift apart.
+The workflow fails the release if the tag does not point at a commit on `main`,
+does not match `pyproject.toml`, or has no matching `CHANGELOG.md` section
+(`scripts/check_release_version.py`). That keeps the release tag, package
+version, changelog, and published GitHub release in sync.
 
 ## Changelog
 

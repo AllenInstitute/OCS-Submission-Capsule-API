@@ -6,26 +6,31 @@ that triggered it (e.g. ``v0.1.1``). Two modes:
 
     check_release_version.py v0.1.1            # verify tag == pyproject == CHANGELOG
     check_release_version.py v0.1.1 --notes    # print that version's CHANGELOG body
+    check_release_version.py v0.1.1 --require-ancestor-ref origin/main
 
 Verification fails (non-zero exit) if the tag version does not match
 ``pyproject.toml`` or if CHANGELOG.md has no matching ``## [x.y.z]`` section, so a
-mistagged or undocumented release never reaches ``gh release create``.
+mistagged or undocumented release never reaches ``gh release create``. With
+``--require-ancestor-ref``, verification also fails if the tag does not point at
+a commit reachable from the given ref.
 """
 
 from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import NoReturn
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 
 
-def fail(message: str) -> "NoReturn":  # type: ignore[name-defined]
+def fail(message: str) -> NoReturn:
     print(f"error: {message}", file=sys.stderr)
     raise SystemExit(1)
 
@@ -65,12 +70,9 @@ def changelog_notes(version: str) -> str:
     )
     match = heading.search(text)
     if match is None:
-        fail(
-            f"CHANGELOG.md has no '## [{version}]' section. "
-            "Add release notes before tagging."
-        )
+        fail(f"CHANGELOG.md has no '## [{version}]' section. Add release notes before tagging.")
 
-    rest = text[match.end():]
+    rest = text[match.end() :]
     next_heading = re.search(r"^## ", rest, re.MULTILINE)
     body = rest[: next_heading.start()] if next_heading else rest
     body = body.strip()
@@ -79,9 +81,56 @@ def changelog_notes(version: str) -> str:
     return body
 
 
+def git_output(args: list[str]) -> str:
+    """Run a git command from the repo root and return stdout."""
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=REPO_ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        fail("git is not installed; cannot verify the release tag")
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr.strip() or exc.stdout.strip() or "git command failed"
+        fail(f"git {' '.join(args)} failed: {detail}")
+    return result.stdout.strip()
+
+
+def is_ancestor(ancestor_commit: str, ref: str) -> bool:
+    """Return whether ``ancestor_commit`` is contained in ``ref`` history."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor_commit, ref],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return result.returncode == 0
+
+
+def verify_tag_is_on_ref(tag: str, ref: str) -> None:
+    """Fail if the release tag does not point at a commit reachable from ref."""
+    tag_commit = git_output(["rev-list", "-n", "1", tag])
+    ref_commit = git_output(["rev-parse", ref])
+    if not is_ancestor(tag_commit, ref):
+        fail(
+            f"tag {tag!r} points at {tag_commit}, which is not contained in "
+            f"{ref} ({ref_commit}). Tag the merged main commit before releasing."
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tag", help="release tag, e.g. v0.1.1")
+    parser.add_argument(
+        "--require-ancestor-ref",
+        metavar="REF",
+        help="also require the release tag commit to be reachable from REF",
+    )
     parser.add_argument(
         "--notes",
         action="store_true",
@@ -99,6 +148,8 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     notes = changelog_notes(version)  # also validates the section exists
+    if args.require_ancestor_ref:
+        verify_tag_is_on_ref(args.tag, args.require_ancestor_ref)
 
     if args.notes:
         print(notes)

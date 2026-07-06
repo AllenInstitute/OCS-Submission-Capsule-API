@@ -7,6 +7,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Changed
+
+- Release badge now points at the latest published GitHub Release instead of
+  the latest raw Git tag.
+- Release workflow now rejects tags that do not point at commits on `main`.
+
 ## [0.1.1] - 2026-07-06
 
 ### Added
