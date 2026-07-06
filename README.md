@@ -1,5 +1,3 @@
-# OCS Submission Capsule
-
 ## Overview
 
 The purpose of this codebase is to provide bioinformatics analysts with a user-friendly interface, built on Code Ocean, for submitting and managing ocs jobs.
@@ -103,7 +101,7 @@ Follow these steps to run the OCS Submission Capsule:
 
 ## Workflow Overview
 
-The capsule follows a linear pipeline: it loads FASTQ metadata, checks where each sample stands in the ingest → align → postalign pipeline, builds the appropriate OCS commands, and can submit progress a fastq sample into the next stage in the pipeline. When `--audit true` is passed, it also queries the LIMS database to verify that sample metadata is complete and flags any missing fields before proceeding.
+The capsule follows a linear pipeline: it loads FASTQ samples metadata, checks where each sample stands in the ingest → align → postalign pipeline, builds the appropriate OCS commands, and can submit progress a fastq sample into the next stage in the pipeline. When `--audit true` is passed, it also queries the LIMS database to verify that sample metadata is complete and flags any missing fields before proceeding.
 ```
 Input (exporter CSV / batch name / FASTQ names)
         │
