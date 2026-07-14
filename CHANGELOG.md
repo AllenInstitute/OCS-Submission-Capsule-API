@@ -7,13 +7,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-## [0.1.3] - 2026-07-14
-
-### Fixed
-
-- Tracker DB pool now discards idle connections the server has already closed
-  (e.g. after job-limit wait sleeps), avoiding false OCS submission failures.
-
 ## [0.1.2] - 2026-07-14
 
 ### Added
@@ -26,6 +19,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Tracker DB pool now discards idle connections the server has already closed
+  (e.g. after job-limit wait sleeps), avoiding false OCS submission failures.
 - Post-alignment config lookup is skipped when only alignment is scheduled,
   including forced alignment submissions.
 
@@ -63,8 +58,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Job manifest output and PostgreSQL tracker integration
 - LIMS audit and AWS SES email summaries
 
-[Unreleased]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.3...HEAD
-[0.1.3]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.2...v0.1.3
+[Unreleased]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.2...HEAD
 [0.1.2]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/releases/tag/v0.1.0
