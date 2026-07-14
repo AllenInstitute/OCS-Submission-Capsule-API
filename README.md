@@ -200,7 +200,7 @@ Key sections:
 
 | Section | Purpose |
 |---|---|
-| `references` | Maps organisms and modalities to reference genome names |
+| `references` | Maps organisms and modalities to reference genome names, optionally by library prep |
 | `probe_sets_by_organism` | Optional probe-set mapping for supported organism/library-prep combinations |
 | `chemistry_by_library_prep` | Maps library prep names to chemistry strings |
 | `workflows` | Alignment and post-alignment command templates for `MTX`, `RTX`, and `RFX` |
@@ -208,6 +208,24 @@ Key sections:
 | `status_mappings` | Defines which OCS statuses count as complete |
 
 Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`.
+
+A modality reference can be a single reference name, preserving the existing behavior:
+
+```json
+"RTX": "mouse_10x_mm10_genome_star2.7.1a"
+```
+
+When library preps for the same organism and modality require different references,
+use a `library_preps` mapping. Every submitted library prep must have an entry:
+
+```json
+"RFX": {
+  "library_preps": {
+    "10xV4_FX16": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1",
+    "10xFXv2": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
+  }
+}
+```
 
 ## Outputs
 

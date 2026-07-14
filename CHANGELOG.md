@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- Optional library-prep-specific reference selection within an organism and modality.
+
 ### Fixed
 
 - Post-alignment config lookup is skipped when only alignment is scheduled,

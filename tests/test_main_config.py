@@ -224,6 +224,31 @@ def test_default_config_builds_representative_commands(
     assert all("{" not in argument and "}" not in argument for argument in command_args)
 
 
+def test_default_config_builds_10x_fx_v2_command_with_matching_reference_and_probe_set():
+    config = load_jsonc_config(CONFIG_PATH)
+    command_config = select_command_config(
+        config=config,
+        modality="RFX",
+        stage=Stage.ALIGNMENT,
+        library_prep_method_name="10xFXv2",
+        organism_common_name="mouse",
+    )
+
+    command_args, _ = build_ocs_command_args(
+        config=config,
+        fastq_record=_fastq_record("10xFXv2"),
+        modality="RFX",
+        email=EMAIL,
+        command_template=command_config,
+    )
+
+    assert command_args[:4] == ["ocs", "fastqs", "align", "tenx-rnaseq-multi"]
+    reference_flag_index = command_args.index("--reference-names")
+    probe_set_flag_index = command_args.index("--cellflex-probe-set-name")
+    assert command_args[reference_flag_index + 1] == "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
+    assert command_args[probe_set_flag_index + 1] == "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set"
+
+
 @pytest.mark.parametrize("modality, stage, library_prep_method_name", _library_prep_params())
 def test_default_config_renders_command_for_each_library_prep(modality, stage, library_prep_method_name):
     config = load_jsonc_config(CONFIG_PATH)

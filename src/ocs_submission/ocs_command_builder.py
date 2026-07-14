@@ -81,6 +81,48 @@ def select_command_config(
     raise ValueError(f"No {modality} {command_config_label} command config found for {library_prep_method_name}")
 
 
+def select_reference_name(
+    config: dict,
+    modality: str,
+    organism_common_name: str,
+    library_prep_method_name: str,
+) -> str:
+    """Select a reference by organism, modality, and optionally library prep."""
+    organism_references = config["references"][organism_common_name]
+    if modality in organism_references:
+        reference_config = organism_references[modality]
+        reference_config_key = modality
+    elif "all" in organism_references:
+        reference_config = organism_references["all"]
+        reference_config_key = "all"
+    else:
+        raise KeyError(
+            f"No reference for organism {organism_common_name!r} with modality {modality!r}: "
+            f"expected a {modality!r} or 'all' entry in "
+            f"config['references'][{organism_common_name!r}], "
+            f"found keys {sorted(organism_references)}"
+        )
+
+    if isinstance(reference_config, str):
+        return reference_config
+
+    try:
+        references_by_library_prep = reference_config["library_preps"]
+    except (KeyError, TypeError) as error:
+        raise KeyError(
+            f"Reference config for organism {organism_common_name!r} and modality "
+            f"{reference_config_key!r} must be a reference name or contain a 'library_preps' mapping"
+        ) from error
+
+    try:
+        return references_by_library_prep[library_prep_method_name]
+    except (KeyError, TypeError) as error:
+        raise KeyError(
+            f"No reference for organism {organism_common_name!r}, modality {modality!r}, "
+            f"and library prep {library_prep_method_name!r}"
+        ) from error
+
+
 def build_ocs_command_args(
     config: dict,
     fastq_record,
@@ -100,25 +142,19 @@ def build_ocs_command_args(
 
     Returns:
     The command as a list of strings, and how many seconds to wait before submitting the
-    next job. If no reference is configured for the sample's organism and modality, an
-    error is raised.
+    next job. If no reference is configured for the sample's organism, modality, and
+    library prep when required, an error is raised.
     """
     library_prep_method_name = fastq_record.library_prep_method_name
     organism_common_name = fastq_record.organism_common_name
     chemistry_by_library_prep = config["chemistry_by_library_prep"]
     probe_sets_by_organism = config["probe_sets_by_organism"]
-    organism_references = config["references"][organism_common_name]
-    if modality in organism_references:
-        reference_name = organism_references[modality]
-    elif "all" in organism_references:
-        reference_name = organism_references["all"]
-    else:
-        raise KeyError(
-            f"No reference for organism {organism_common_name!r} with modality {modality!r}: "
-            f"expected a {modality!r} or 'all' entry in "
-            f"config['references'][{organism_common_name!r}], "
-            f"found keys {sorted(organism_references)}"
-        )
+    reference_name = select_reference_name(
+        config=config,
+        modality=modality,
+        organism_common_name=organism_common_name,
+        library_prep_method_name=library_prep_method_name,
+    )
     command_template_field_values = {
         "reference_name": reference_name,
         "load_name": fastq_record.load_name,

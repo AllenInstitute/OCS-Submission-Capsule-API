@@ -27,7 +27,14 @@
     "mouse": {
       "MTX": "mouse_10x_mm10_genome_star2.7.1a",
       "RTX": "mouse_10x_mm10_genome_star2.7.1a",
-      "RFX": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1"
+      "RFX": {
+        "library_preps": {
+          "10xV4_FX16": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1",
+          "10xV4_FX16-TK": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1",
+          "10xV4_FX16-TK_BC": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1",
+          "10xFXv2": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
+        }
+      }
     },
     "macaque | macaque_nemestrina | macaque_fascicularis": {
       "RTX": "macaque_ncbi_mmul10_genome_star2.7.1a-1",
@@ -109,7 +116,8 @@
       "10xV4_FX4": "mouse_10x_mm10-egfp-mscarlet-vbc_chromium_v1.1_cellflex_probe_set",
       "10xV4_FX16": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set",
       "10xV4_FX16-TK": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set",
-      "10xV4_FX16-TK_BC": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set"
+      "10xV4_FX16-TK_BC": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set",
+      "10xFXv2": "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set"
     }
   },
   "chemistry_by_library_prep": {
@@ -165,7 +173,7 @@
           "spacing": 180
         },
         {
-          "name": "default",
+          "name": "standard",
           "match": {
             "library_preps": [
               "10xRSeq_Mult"
@@ -584,7 +592,8 @@
             "library_preps": [
               "10xV4_FX16",
               "10xV4_FX16-TK",
-              "10xV4_FX16-TK_BC"
+              "10xV4_FX16-TK_BC",
+              "10xFXv2"
             ]
           },
           "command": [
@@ -642,7 +651,8 @@
             "library_preps": [
               "10xV4_FX16",
               "10xV4_FX16-TK",
-              "10xV4_FX16-TK_BC"
+              "10xV4_FX16-TK_BC",
+              "10xFXv2"
             ]
           },
           "command": [

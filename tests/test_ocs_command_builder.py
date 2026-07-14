@@ -281,6 +281,76 @@ def test_build_ocs_command_args_uses_all_reference_fallback(config, make_fastq_r
     assert "human_all_ref" in command_args
 
 
+@pytest.mark.parametrize(
+    "library_prep_method_name, expected_reference_name",
+    [
+        pytest.param("10xRSeq_Mult", "mouse_mtx_ref", id="existing_prep"),
+        pytest.param("10xV4", "mouse_mtx_v4_ref", id="new_prep"),
+    ],
+)
+def test_build_ocs_command_args_uses_library_prep_specific_reference(
+    config,
+    make_fastq_record,
+    library_prep_method_name,
+    expected_reference_name,
+):
+    config["references"]["mouse"]["MTX"] = {
+        "library_preps": {
+            "10xRSeq_Mult": "mouse_mtx_ref",
+            "10xV4": "mouse_mtx_v4_ref",
+        }
+    }
+    record = make_fastq_record(library_prep_method_name=library_prep_method_name)
+    template = config["workflows"]["MTX"]["alignment_command_configs"][0]
+
+    command_args, _ = build_ocs_command_args(
+        config=config,
+        fastq_record=record,
+        modality="MTX",
+        email=EMAIL,
+        command_template=template,
+    )
+
+    assert expected_reference_name in command_args
+
+
+def test_build_ocs_command_args_requires_library_prep_specific_reference(config, make_fastq_record):
+    config["references"]["mouse"]["MTX"] = {
+        "library_preps": {
+            "another_prep": "mouse_other_ref",
+        }
+    }
+    record = make_fastq_record(library_prep_method_name="10xRSeq_Mult")
+    template = config["workflows"]["MTX"]["alignment_command_configs"][0]
+
+    with pytest.raises(
+        KeyError,
+        match="No reference for organism 'mouse', modality 'MTX', and library prep '10xRSeq_Mult'",
+    ):
+        build_ocs_command_args(
+            config=config,
+            fastq_record=record,
+            modality="MTX",
+            email=EMAIL,
+            command_template=template,
+        )
+
+
+def test_build_ocs_command_args_requires_valid_library_prep_reference_mapping(config, make_fastq_record):
+    config["references"]["mouse"]["MTX"] = {}
+    record = make_fastq_record(library_prep_method_name="10xRSeq_Mult")
+    template = config["workflows"]["MTX"]["alignment_command_configs"][0]
+
+    with pytest.raises(KeyError, match="must be a reference name or contain a 'library_preps' mapping"):
+        build_ocs_command_args(
+            config=config,
+            fastq_record=record,
+            modality="MTX",
+            email=EMAIL,
+            command_template=template,
+        )
+
+
 def test_build_ocs_command_args_requires_matching_reference(config, make_fastq_record):
     record = make_fastq_record(organism_common_name="mouse")
     template = config["workflows"]["MTX"]["alignment_command_configs"][0]
