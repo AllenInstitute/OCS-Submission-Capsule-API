@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ocs-submission"
-version = "0.1.1"
+version = "0.1.2"
 description = "OCS Submission Capsule: load FASTQ status, build alignment and post-alignment commands, submit to OCS, audit LIMS, and email summaries."
 readme = "README.md"
 requires-python = ">=3.12"

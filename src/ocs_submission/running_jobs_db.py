@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import subprocess
 
-from psycopg2 import pool
+from psycopg2 import OperationalError, pool
 from psycopg2.extras import RealDictCursor
 
 from .environment import running_jobs_db_url
@@ -41,13 +41,19 @@ def init_connection_pool(min_conn=1, max_conn=5):
 
 def get_connection():
     """
-    Borrows a live connection from the pool, creating the pool on first use.
+    If an idle connection has been closed by the server (for example, after a long wait for jobs), it is discarded and replaced with a new one before being returned.
 
     Returns:
     A connection borrowed from the shared connection pool.
     """
     connection_pool = init_connection_pool()
-    return connection_pool.getconn()
+    conn = connection_pool.getconn()
+    try:
+        conn.rollback()
+    except OperationalError:
+        connection_pool.putconn(conn, close=True)
+        conn = connection_pool.getconn()
+    return conn
 
 
 def return_connection(conn):

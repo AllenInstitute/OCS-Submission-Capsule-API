@@ -7,20 +7,29 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Fixed
+
+- Tracker DB pool now discards idle connections the server has already closed
+  (e.g. after job-limit wait sleeps), avoiding false OCS submission failures.
+
+## [0.1.2] - 2026-07-14
+
 ### Added
 
 - Optional library-prep-specific reference selection within an organism and modality.
+
+### Changed
+
+- Release workflow now rejects tags that do not point at commits on `main`.
 
 ### Fixed
 
 - Post-alignment config lookup is skipped when only alignment is scheduled,
   including forced alignment submissions.
 
-### Changed
+### Removed
 
-- Release badge now points at the latest published GitHub Release instead of
-  the latest raw Git tag.
-- Release workflow now rejects tags that do not point at commits on `main`.
+- Release-version badge from the README.
 
 ## [0.1.1] - 2026-07-06
 
@@ -52,6 +61,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Job manifest output and PostgreSQL tracker integration
 - LIMS audit and AWS SES email summaries
 
-[Unreleased]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/releases/tag/v0.1.0
