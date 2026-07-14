@@ -462,6 +462,32 @@ def test_build_ocs_job_submission_command_allows_alignment_without_post_alignmen
     assert result.at[0, "postalign_command_args"] is None
 
 
+def test_build_ocs_job_submission_command_allows_forced_alignment_without_post_alignment_config(
+    config,
+    make_fastq_record,
+):
+    config["workflows"]["MTX"]["alignment_command_configs"][0]["match"]["library_preps"].append("align_only_prep")
+    record = make_fastq_record(
+        align_status="COMPLETED",
+        postalign_status="NOT COMPLETED",
+        library_prep_method_name="align_only_prep",
+    )
+
+    result = build_ocs_job_submission_command(
+        fastq_records_df=pd.DataFrame([vars(record)]),
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission="alignment",
+        dry_run=True,
+    )
+
+    assert bool(result.at[0, "align_should_execute"]) is True
+    assert bool(result.at[0, "postalign_should_execute"]) is False
+    assert result.at[0, "align_command_args"] == EXPECTED_ALIGNMENT_COMMAND_ARGS
+    assert result.at[0, "postalign_command_args"] is None
+
+
 def test_expected_manifest_row_matches_command_record_schema():
     """Pin the test helper to the production manifest schema.
 

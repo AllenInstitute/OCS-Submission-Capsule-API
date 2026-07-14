@@ -7,6 +7,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Fixed
+
+- Post-alignment config lookup is skipped when only alignment is scheduled,
+  including forced alignment submissions.
+
 ### Changed
 
 - Release badge now points at the latest published GitHub Release instead of
