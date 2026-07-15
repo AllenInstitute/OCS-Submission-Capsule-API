@@ -7,6 +7,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Fixed
+
+- Samples whose library prep is not configured for a scheduled stage are now skipped instead of stopping command
+  construction, and their fastq names are reported in the logs and submission summary email.
+
 ## [0.1.2] - 2026-07-14
 
 ### Added
