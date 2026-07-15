@@ -98,6 +98,7 @@ Follow these steps to run the OCS Submission Capsule:
 - Checks ingest, alignment, and post-alignment status for each Fastq sample on OCS.
 - Loads FASTQ metadata from an OCS Tracker exporter CSV, a batch name from vendor, or list of fastq names.
 - Builds alignment and post-alignment OCS commands from `config.jsonc` templates.
+- Skips and reports FASTQ samples whose library prep is not listed in the command configuration for a scheduled stage.
 - Skips any work that is already complete or currently in progress.
 - Submits jobs through the `ocs` CLI, respecting a configurable job limit.
 - Tracks submitted jobs in PostgreSQL so in-flight jobs can be re-checked on later runs.
@@ -207,6 +208,10 @@ Key sections:
 | `status_mappings` | Defines which OCS statuses count as complete |
 
 Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`.
+
+When alignment or post-alignment is due but the sample's library prep is not listed in that stage's command
+configuration, the capsule skips that stage and reports the FASTQ name in the final log and submission summary email.
+Missing chemistry and probe-set mappings continue to render as empty command values.
 
 A modality reference can be a single reference name, preserving the existing behavior:
 

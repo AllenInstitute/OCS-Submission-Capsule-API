@@ -20,7 +20,10 @@ from .fastq_info_fetcher import (
     log_fastq_status_summaries,
 )
 from .ocs_cli import execute_ocs_submission_commands
-from .ocs_command_builder import build_ocs_job_submission_command
+from .ocs_command_builder import (
+    build_ocs_job_submission_command,
+    unconfigured_library_prep_fastq_names,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -181,6 +184,13 @@ def main() -> None:
 
     ocs_job_commands_df.to_json(DATA_MANIFEST_PATH, orient="records", indent=2)
     logger.info(f"Wrote data manifest to {DATA_MANIFEST_PATH}")
+
+    unconfigured_fastq_names = unconfigured_library_prep_fastq_names(ocs_job_commands_df)
+    if unconfigured_fastq_names:
+        logger.warning(
+            "The following Fastq Name have library prep names not matching the configuration file: %s",
+            ", ".join(unconfigured_fastq_names),
+        )
 
     if not dry_run:
         send_command_summary_email(

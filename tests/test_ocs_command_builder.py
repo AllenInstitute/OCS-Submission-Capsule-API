@@ -11,6 +11,7 @@ from ocs_submission.ocs_command_builder import (
     build_ocs_job_submission_command,
     build_post_alignment_job_command_record,
     select_command_config,
+    unconfigured_library_prep_fastq_names,
 )
 from ocs_submission.stages import Stage
 
@@ -63,9 +64,11 @@ def _command_config(
 def _expected_manifest_row(
     fastq_name: str = "NY-MX22068-2",
     align_should_execute: bool = False,
+    align_library_prep_unconfigured: bool = False,
     align_command_args: list[str] | None = None,
     align_spacing: int | None = None,
     postalign_should_execute: bool = False,
+    postalign_library_prep_unconfigured: bool = False,
     postalign_command_args: list[str] | None = None,
     postalign_spacing: int | None = None,
 ) -> dict:
@@ -84,6 +87,7 @@ def _expected_manifest_row(
         "dry_run": True,
         "notify_email": EMAIL,
         "align_should_execute": align_should_execute,
+        "align_library_prep_unconfigured": align_library_prep_unconfigured,
         "align_command_args": align_command_args,
         "align_command": " ".join(align_command_args) if align_command_args else None,
         "align_spacing": align_spacing,
@@ -92,6 +96,7 @@ def _expected_manifest_row(
         "align_error_message": None,
         "align_executed_at": None,
         "postalign_should_execute": postalign_should_execute,
+        "postalign_library_prep_unconfigured": postalign_library_prep_unconfigured,
         "postalign_command_args": postalign_command_args,
         "postalign_command": " ".join(postalign_command_args) if postalign_command_args else None,
         "postalign_spacing": postalign_spacing,
@@ -162,21 +167,22 @@ def test_select_command_config_skips_configs_restricted_to_other_organisms(confi
 
 
 @pytest.mark.parametrize(
-    "stage, expected_error",
+    "stage",
     [
-        pytest.param(Stage.ALIGNMENT, "No MTX alignment command config found", id="alignment"),
-        pytest.param(Stage.POST_ALIGNMENT, "No MTX post-alignment command config found", id="post_alignment"),
+        pytest.param(Stage.ALIGNMENT, id="alignment"),
+        pytest.param(Stage.POST_ALIGNMENT, id="post_alignment"),
     ],
 )
-def test_select_command_config_rejects_unmatched_library_prep(config, stage, expected_error):
-    with pytest.raises(ValueError, match=expected_error):
-        select_command_config(
-            config=config,
-            modality="MTX",
-            stage=stage,
-            library_prep_method_name="UNSUPPORTED_PREP",
-            organism_common_name="mouse",
-        )
+def test_select_command_config_returns_none_for_unlisted_library_prep(config, stage):
+    selected = select_command_config(
+        config=config,
+        modality="MTX",
+        stage=stage,
+        library_prep_method_name="UNSUPPORTED_PREP",
+        organism_common_name="mouse",
+    )
+
+    assert selected is None
 
 
 @pytest.mark.parametrize("missing_field", ["match", "library_preps"])
@@ -202,7 +208,7 @@ def test_select_post_alignment_config_rejects_unmatched_organism(config):
         _command_config("mouse", ["10xRSeq_Mult"], organisms=["mouse"])
     ]
 
-    with pytest.raises(ValueError, match="No MTX post-alignment command config found"):
+    with pytest.raises(ValueError, match="No MTX post-alignment command config found .* organism rat"):
         select_command_config(
             config=config,
             modality="MTX",
@@ -264,6 +270,27 @@ def test_build_ocs_command_args_renders_probe_set_execution_vcpus_and_valueless_
         "--no-value",
     ]
     assert spacing == 60
+
+
+def test_build_ocs_command_args_uses_empty_values_for_unknown_chemistry_and_probe_set(config, make_fastq_record):
+    template = {
+        **config["workflows"]["MTX"]["alignment_command_configs"][0],
+        "arguments": [
+            {"flag": "--chemistry", "value": "{chemistry}"},
+            {"flag": "--probe-set", "value": "{probe_set}"},
+        ],
+    }
+    record = make_fastq_record(library_prep_method_name="10xMultX_GEX")
+
+    command_args, _ = build_ocs_command_args(
+        config=config,
+        fastq_record=record,
+        modality="MTX",
+        email=EMAIL,
+        command_template=template,
+    )
+
+    assert command_args == ["ocs", "fastqs", "align", "tenx-arc", "--chemistry", "", "--probe-set", ""]
 
 
 def test_build_ocs_command_args_uses_all_reference_fallback(config, make_fastq_record):
@@ -417,6 +444,22 @@ def test_alignment_submission_decision(
         _assert_job_not_scheduled(result, "align")
 
 
+def test_alignment_skips_unconfigured_library_prep(config, make_fastq_record):
+    record = make_fastq_record(library_prep_method_name="unsupported_prep")
+
+    result = build_alignment_job_command_record(
+        fastq_record=record,
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission=None,
+    )
+
+    assert result["align_should_execute"] is False
+    assert result["align_library_prep_unconfigured"] is True
+    _assert_job_not_scheduled(result, "align")
+
+
 @pytest.mark.parametrize(
     "align_status, postalign_status, alignment_should_execute, force_submission, should_execute",
     [
@@ -460,22 +503,25 @@ def test_post_alignment_submission_decision(
         _assert_job_not_scheduled(result, "postalign")
 
 
-def test_post_alignment_requires_matching_library_prep(config, make_fastq_record):
+def test_post_alignment_skips_unconfigured_library_prep(config, make_fastq_record):
     record = make_fastq_record(
         align_status="COMPLETED",
         postalign_status="NOT COMPLETED",
         library_prep_method_name="unsupported_prep",
     )
 
-    with pytest.raises(ValueError, match="No MTX post-alignment command config found"):
-        build_post_alignment_job_command_record(
-            fastq_record=record,
-            modality="MTX",
-            config=config,
-            email=EMAIL,
-            force_submission=None,
-            alignment_should_execute=False,
-        )
+    result = build_post_alignment_job_command_record(
+        fastq_record=record,
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission=None,
+        alignment_should_execute=False,
+    )
+
+    assert result["postalign_should_execute"] is False
+    assert result["postalign_library_prep_unconfigured"] is True
+    _assert_job_not_scheduled(result, "postalign")
 
 
 @pytest.mark.parametrize(
@@ -672,6 +718,41 @@ def test_build_ocs_job_submission_command_handles_mixed_rows(config, make_fastq_
     )
 
     assert_frame_equal(result, expected)
+
+
+def test_build_ocs_job_submission_command_flags_unconfigured_library_prep(config, make_fastq_record):
+    records = [
+        make_fastq_record(fastq_name="configured"),
+        make_fastq_record(fastq_name="unconfigured", library_prep_method_name="unsupported_prep"),
+    ]
+
+    result = build_ocs_job_submission_command(
+        fastq_records_df=pd.DataFrame([vars(record) for record in records]),
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission=None,
+        dry_run=True,
+    )
+
+    assert bool(result.at[0, "align_should_execute"]) is True
+    assert bool(result.at[0, "align_library_prep_unconfigured"]) is False
+    assert bool(result.at[1, "align_should_execute"]) is False
+    assert bool(result.at[1, "align_library_prep_unconfigured"]) is True
+    assert unconfigured_library_prep_fastq_names(result) == ["unconfigured"]
+
+
+def test_unconfigured_library_prep_fastq_names_empty_when_all_configured(config, make_fastq_record):
+    result = build_ocs_job_submission_command(
+        fastq_records_df=pd.DataFrame([vars(make_fastq_record())]),
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission=None,
+        dry_run=True,
+    )
+
+    assert unconfigured_library_prep_fastq_names(result) == []
 
 
 def test_build_ocs_job_submission_command_returns_empty_manifest_with_schema(config):

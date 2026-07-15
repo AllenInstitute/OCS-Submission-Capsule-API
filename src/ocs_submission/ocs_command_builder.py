@@ -4,6 +4,8 @@ import pandas as pd
 
 from .stages import Stage
 
+JOB_STAGES = (Stage.ALIGNMENT, Stage.POST_ALIGNMENT)
+
 COMMAND_CONFIG_BY_STAGE = {
     Stage.ALIGNMENT: ("alignment_command_configs", "alignment"),
     Stage.POST_ALIGNMENT: ("post_alignment_command_configs", "post-alignment"),
@@ -11,6 +13,7 @@ COMMAND_CONFIG_BY_STAGE = {
 
 JOB_RECORD_FIELDS = (
     "should_execute",
+    "library_prep_unconfigured",
     "command_args",
     "command",
     "spacing",
@@ -32,12 +35,22 @@ COMMAND_RECORD_COLUMNS = [
     "force_submission",
     "dry_run",
     "notify_email",
-    *(
-        f"{stage.ocs_stage_name}_{field}"
-        for stage in (Stage.ALIGNMENT, Stage.POST_ALIGNMENT)
-        for field in JOB_RECORD_FIELDS
-    ),
+    *(f"{stage.ocs_stage_name}_{field}" for stage in JOB_STAGES for field in JOB_RECORD_FIELDS),
 ]
+
+UNCONFIGURED_LIBRARY_PREP_COLUMNS = [f"{stage.ocs_stage_name}_library_prep_unconfigured" for stage in JOB_STAGES]
+
+
+def unconfigured_library_prep_fastq_names(ocs_job_commands_df: pd.DataFrame) -> list[str]:
+    """
+    List the fastq names skipped because their library prep is not in the config file.
+
+    A sample is skipped when a stage was due to run but no command config lists its library
+    prep for this modality. The run reports these fastq names in the logs and summary email
+    so the missing library preps can be added to the config.
+    """
+    unconfigured = ocs_job_commands_df[UNCONFIGURED_LIBRARY_PREP_COLUMNS].any(axis=1)
+    return ocs_job_commands_df.loc[unconfigured, "fastq_name"].tolist()
 
 
 def select_command_config(
@@ -46,7 +59,7 @@ def select_command_config(
     stage: Stage,
     library_prep_method_name: str,
     organism_common_name: str,
-) -> dict:
+) -> dict | None:
     """
     Pick the first command template that matches a fastq sample's stage, library prep,
     and organism.
@@ -59,12 +72,16 @@ def select_command_config(
     organism_common_name: The sample's organism.
 
     Returns:
-    The matching command template from the config. If nothing matches, an error is raised.
+    The matching command template from the config, or ``None`` when the library prep is not
+    listed for this modality and stage at all. The caller skips the sample and reports it.
+    An unlisted library prep is expected (not every prep runs on every modality), but a listed
+    prep whose organism is not covered is a configuration error, so that case raises instead.
     """
     workflow = config["workflows"][modality]
     command_config_field, command_config_label = COMMAND_CONFIG_BY_STAGE[stage]
     command_configs = workflow[command_config_field]
 
+    library_prep_is_listed = False
     for command_config in command_configs:
         try:
             match = command_config["match"]
@@ -72,13 +89,21 @@ def select_command_config(
         except KeyError as error:
             raise KeyError("library_preps not listed in the config file") from error
 
-        organisms = match.get("organisms")
+        if library_prep_method_name not in library_preps:
+            continue
+        library_prep_is_listed = True
 
         # Omit organisms in config to match any organism.
-        if library_prep_method_name in library_preps and (organisms is None or organism_common_name in organisms):
+        organisms = match.get("organisms")
+        if organisms is None or organism_common_name in organisms:
             return command_config
 
-    raise ValueError(f"No {modality} {command_config_label} command config found for {library_prep_method_name}")
+    if library_prep_is_listed:
+        raise ValueError(
+            f"No {modality} {command_config_label} command config found for {library_prep_method_name} "
+            f"and organism {organism_common_name}"
+        )
+    return None
 
 
 def select_reference_name(
@@ -195,7 +220,8 @@ def build_alignment_job_command_record(
 
     Returns:
     Alignment fields for one row of the submission manifest. Command fields are empty when
-    alignment is not scheduled.
+    alignment is not scheduled. ``align_library_prep_unconfigured`` is true when alignment was
+    due to run but the sample's library prep is not listed in the config, so it was skipped.
     """
     ingest_complete_statuses = config["status_mappings"]["ingest_complete"]
     align_complete_statuses = config["status_mappings"]["alignment_complete"]
@@ -204,6 +230,7 @@ def build_alignment_job_command_record(
     align_status = fastq_record.align_status
 
     should_execute = False
+    library_prep_unconfigured = False
     command_args = None
     spacing = None
 
@@ -221,16 +248,21 @@ def build_alignment_job_command_record(
             library_prep_method_name=fastq_record.library_prep_method_name,
             organism_common_name=fastq_record.organism_common_name,
         )
-        command_args, spacing = build_ocs_command_args(
-            config=config,
-            fastq_record=fastq_record,
-            modality=modality,
-            email=email,
-            command_template=align_command_config,
-        )
+        if align_command_config is None:
+            should_execute = False
+            library_prep_unconfigured = True
+        else:
+            command_args, spacing = build_ocs_command_args(
+                config=config,
+                fastq_record=fastq_record,
+                modality=modality,
+                email=email,
+                command_template=align_command_config,
+            )
 
     return {
         "align_should_execute": should_execute,
+        "align_library_prep_unconfigured": library_prep_unconfigured,
         "align_command_args": command_args,
         "align_command": " ".join(command_args) if command_args else None,
         "align_spacing": spacing,
@@ -263,7 +295,9 @@ def build_post_alignment_job_command_record(
 
     Returns:
     Post-alignment fields for one row of the submission manifest. Command fields are empty
-    when post-alignment is not scheduled.
+    when post-alignment is not scheduled. ``postalign_library_prep_unconfigured`` is true when
+    post-alignment was due to run but the sample's library prep is not listed in the config, so
+    it was skipped.
     """
     align_complete_statuses = config["status_mappings"]["alignment_complete"]
     postalign_complete_statuses = config["status_mappings"]["post_alignment_complete"]
@@ -272,6 +306,7 @@ def build_post_alignment_job_command_record(
     postalign_status = fastq_record.postalign_status
 
     should_execute = False
+    library_prep_unconfigured = False
     command_args = None
     spacing = None
 
@@ -291,16 +326,21 @@ def build_post_alignment_job_command_record(
             library_prep_method_name=fastq_record.library_prep_method_name,
             organism_common_name=fastq_record.organism_common_name,
         )
-        command_args, spacing = build_ocs_command_args(
-            config=config,
-            fastq_record=fastq_record,
-            modality=modality,
-            email=email,
-            command_template=postalign_template,
-        )
+        if postalign_template is None:
+            should_execute = False
+            library_prep_unconfigured = True
+        else:
+            command_args, spacing = build_ocs_command_args(
+                config=config,
+                fastq_record=fastq_record,
+                modality=modality,
+                email=email,
+                command_template=postalign_template,
+            )
 
     return {
         "postalign_should_execute": should_execute,
+        "postalign_library_prep_unconfigured": library_prep_unconfigured,
         "postalign_command_args": command_args,
         "postalign_command": " ".join(command_args) if command_args else None,
         "postalign_spacing": spacing,

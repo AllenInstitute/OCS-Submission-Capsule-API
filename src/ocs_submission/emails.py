@@ -15,6 +15,7 @@ import pandas as pd
 from . import OUTPUT_DIR
 from .audit import run_audit
 from .environment import clear_aws_credential_env
+from .ocs_command_builder import unconfigured_library_prep_fastq_names
 from .stages import Stage
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,7 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
     ocs_job_commands_df: The post-execution dataframe with align and postalign columns.
     notify_email: The recipient email address; an empty value is a no-op.
     """
+    # Do not send an email if no recipient was provided or there are no fastq samples to report.
     if not notify_email or ocs_job_commands_df.empty:
         return
 
@@ -154,9 +156,15 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
             outcome = _stage_outcome(fastq_record, stage.ocs_stage_name)
             if outcome is None:
                 continue
-            (success_list if outcome["success"] else failure_list).append((stage.ocs_stage_name, outcome))
+            if outcome["success"]:
+                success_list.append((stage.ocs_stage_name, outcome))
+            else:
+                failure_list.append((stage.ocs_stage_name, outcome))
 
-    if not (success_list or failure_list):
+    unconfigured_fastq_names = unconfigured_library_prep_fastq_names(ocs_job_commands_df)
+
+    # Do not send an email if there are no submission attempts and no fastq samples with unconfigured library preps.
+    if not (success_list or failure_list or unconfigured_fastq_names):
         return
 
     batches = ocs_job_commands_df["batch_name_from_vendor"].dropna().unique()
@@ -174,6 +182,11 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
     ]
     if batch_label:
         body_part_list.append(f"Batch Name: {batch_label}")
+    if unconfigured_fastq_names:
+        body_part_list.append(
+            "The following Fastq Name have library prep names not matching the configuration file: "
+            f"{', '.join(unconfigured_fastq_names)}"
+        )
 
     if success_list:
         body_part_list.extend(["", "Successful Submissions:", "-" * 50])
