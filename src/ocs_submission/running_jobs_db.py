@@ -41,7 +41,8 @@ def init_connection_pool(min_conn=1, max_conn=5):
 
 def get_connection():
     """
-    If an idle connection has been closed by the server (for example, after a long wait for jobs), it is discarded and replaced with a new one before being returned.
+    If an idle connection has been closed by the server, such as after a long wait for jobs,
+    it is discarded and replaced with a new one before being returned.
 
     Returns:
     A connection borrowed from the shared connection pool.
