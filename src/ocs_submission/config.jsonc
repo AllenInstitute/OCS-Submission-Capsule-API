@@ -387,10 +387,10 @@
           "spacing": 180
         },
         {
-          "name": "10xV4_PX",
+          "name": "10xV4_PX-Placeholder",
           "match": {
             "library_preps": [
-              "10xV4_PX"
+              "10xV4_PX-Placeholder"
             ]
           },
           "command": [
@@ -546,7 +546,7 @@
               "10Xv2",
               "10xV3.1_HT_CP",
               "10xV3.1_HT_CP-BC",
-              "10xV4_PX",
+              "10xV4_PX-Placeholder",
               "10xV4",
               "10xV4_FX4",
               "10xV4_FX4-cps"
@@ -609,7 +609,7 @@
             },
             {
               "flag": "--asset-name",
-              "value": "cellranger-multi"
+              "value": "tenx-rnaseq-multi"
             },
             {
               "flag": "--load-names",
