@@ -172,9 +172,15 @@ def run_audit(batch_name_from_vendor: str) -> tuple[pd.DataFrame, pd.DataFrame, 
     """
     prefix = batch_name_from_vendor.split("-")[0][:3]
 
-    sql_file = f"{script_dir}/lims_rtx_ocs.sql" if prefix in ("RTX", "10X") else f"{script_dir}/lims_mtx_ocs.sql"
-    auditor = RTXAuditor() if prefix in ("RTX", "10X") else MTXAuditor()
-    modality = prefix if prefix in ("RTX", "10X") else "MTX"
+    sql_filename = (
+        "cellflex_lims_metadata_pull.sql" if prefix == "RFX" else "rnaseq_and_multiome_lims_metadata_pull.sql"
+    )
+    if prefix in ("RTX", "RFX", "10X"):
+        auditor = RTXAuditor()
+        modality = prefix
+    else:
+        auditor = MTXAuditor()
+        modality = "MTX"
 
     conn = psycopg2.connect(
         host="lims2.private-allenneuraldynamics.org",
@@ -183,15 +189,18 @@ def run_audit(batch_name_from_vendor: str) -> tuple[pd.DataFrame, pd.DataFrame, 
         password=lims_database_password(),
     )
 
-    with open(sql_file) as f:
-        sql = f.read().format(
-            load_name="''",
-            exp_component_name="''",
-            batch_name=f"'{batch_name_from_vendor}'",
-        )
+    with open(os.path.join(script_dir, sql_filename)) as f:
+        sql = f.read()
 
     with conn.cursor() as cur:
-        cur.execute(sql)
+        cur.execute(
+            sql,
+            {
+                "batch_names": batch_name_from_vendor,
+                "fastq_names": None,
+                "load_names": None,
+            },
+        )
         rows = cur.fetchall()
         columns = [d[0] for d in cur.description]
     conn.close()

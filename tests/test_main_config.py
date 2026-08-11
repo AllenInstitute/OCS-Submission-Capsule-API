@@ -40,6 +40,7 @@ def _argument_placeholders(command_config: dict) -> set[str]:
 
 def _fastq_record(library_prep_method_name: str) -> SimpleNamespace:
     return SimpleNamespace(
+        fastq_name="FASTQ_1",
         load_name="LOAD_1",
         library_prep_method_name=library_prep_method_name,
         organism_common_name="mouse",
@@ -215,10 +216,14 @@ def test_default_config_builds_representative_commands(
         modality=modality,
         email=EMAIL,
         command_template=command_config,
+        batch_processing=modality in ("RTX", "RFX"),
     )
 
     assert command_args[: len(expected_command_prefix)] == expected_command_prefix
-    assert "LOAD_1" in command_args
+    if modality in ("RTX", "RFX"):
+        assert command_args[command_args.index("--fastq-names") + 1] == "FASTQ_1"
+    else:
+        assert command_args[command_args.index("--load-names") + 1] == "LOAD_1"
     assert EMAIL in command_args
     assert spacing > 0
     assert all("{" not in argument and "}" not in argument for argument in command_args)

@@ -272,6 +272,30 @@ def test_build_ocs_command_args_renders_probe_set_execution_vcpus_and_valueless_
     assert spacing == 60
 
 
+def test_build_ocs_command_args_uses_shared_organism_probe_set(config, make_fastq_record):
+    config["probe_sets_by_organism"]["human"] = "human_probe_set"
+    template = _command_config(
+        name="cellflex",
+        library_preps=["10xV4_FX16"],
+        command=["ocs"],
+        arguments=[{"flag": "--probe-set", "value": "{probe_set}"}],
+    )
+    record = make_fastq_record(
+        organism_common_name="human",
+        library_prep_method_name="10xV4_FX16",
+    )
+
+    command_args, _ = build_ocs_command_args(
+        config=config,
+        fastq_record=record,
+        modality="MTX",
+        email=EMAIL,
+        command_template=template,
+    )
+
+    assert command_args == ["ocs", "--probe-set", "human_probe_set"]
+
+
 def test_build_ocs_command_args_uses_empty_values_for_unknown_chemistry_and_probe_set(config, make_fastq_record):
     template = {
         **config["workflows"]["MTX"]["alignment_command_configs"][0],

@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Changed
+
+- Moved the release-version validator to `scripts/release/check_version.py`.
+
 ### Fixed
 
 - Samples whose library prep is not configured for a scheduled stage are now skipped instead of stopping command
@@ -41,7 +45,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Config-loop tests and manifest schema checks
 - Tag-driven release workflow that verifies the tag against `pyproject.toml`
   and `CHANGELOG.md`, runs the tests, and publishes a GitHub release with notes
-  from the changelog (`scripts/check_release_version.py`)
+  from the changelog
 
 ### Changed
 

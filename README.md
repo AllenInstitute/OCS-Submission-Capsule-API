@@ -186,6 +186,7 @@ ocs-submission \
 | `--email`, `-e` | No | Email for OCS job notifications and run summary emails |
 | `--dry-run` | No | `true` or `false` (default `false`) — log commands without executing |
 | `--audit` | No | `true` or `false` (default `false`) — run LIMS audit for a batch name from vendor |
+| `--batch-processing` | No | `true` or `false` (default `false`) — use FASTQ names for RTX/RFX alignment and post-alignment commands |
 | `--config` | No | Path to JSONC config; defaults to included `config.jsonc` |
 
 ## Configuration
@@ -201,13 +202,13 @@ Key sections:
 | Section | Purpose |
 |---|---|
 | `references` | Maps organisms and modalities to reference genome names, optionally by library prep |
-| `probe_sets_by_organism` | Optional probe-set mapping for supported organism/library-prep combinations |
+| `probe_sets_by_organism` | Optional shared probe set per organism, or a mapping by library prep |
 | `chemistry_by_library_prep` | Maps library prep names to chemistry strings |
 | `workflows` | Alignment and post-alignment command templates for `MTX`, `RTX`, and `RFX` |
 | `job_settings` | Submission limits and spacing between job submissions |
 | `status_mappings` | Defines which OCS statuses count as complete |
 
-Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`.
+Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{input_name}`, `{input_name_flag}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`. `{input_name}` and `{input_name_flag}` are used together to render either `--load-names <load_name>` or, for RTX/RFX batch processing, `--fastq-names <fastq_name>`.
 
 When alignment or post-alignment is due but the sample's library prep is not listed in that stage's command
 configuration, the capsule skips that stage and reports the FASTQ name in the final log and submission summary email.
@@ -267,8 +268,8 @@ src/ocs_submission/
 └── audit/
     ├── __init__.py
     ├── audit.py             # LIMS audit (exports run_audit)
-    ├── lims_mtx_ocs.sql
-    └── lims_rtx_ocs.sql
+    ├── rnaseq_and_multiome_lims_metadata_pull.sql
+    └── cellflex_lims_metadata_pull.sql
 ```
 
 ## Development
@@ -341,7 +342,7 @@ To cut a release:
 
 The workflow fails the release if the tag does not point at a commit on `main`,
 does not match `pyproject.toml`, or has no matching `CHANGELOG.md` section
-(`scripts/check_release_version.py`). That keeps the release tag, package
+(`scripts/release/check_version.py`). That keeps the release tag, package
 version, changelog, and published GitHub release in sync.
 
 ## Authors

@@ -154,6 +154,7 @@ def build_ocs_command_args(
     modality: str,
     email: str,
     command_template: dict,
+    batch_processing: bool = False,
 ) -> tuple[list[str], int]:
     """
     Fill in a command template for one fastq sample and return the command to run.
@@ -164,6 +165,7 @@ def build_ocs_command_args(
     modality: The modality used to look up the reference genome.
     email: The notification email address for OCS.
     command_template: The base command, arguments, and wait time from the config.
+    batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
 
     Returns:
     The command as a list of strings, and how many seconds to wait before submitting the
@@ -174,27 +176,39 @@ def build_ocs_command_args(
     organism_common_name = fastq_record.organism_common_name
     chemistry_by_library_prep = config["chemistry_by_library_prep"]
     probe_sets_by_organism = config["probe_sets_by_organism"]
+    probe_set_config = probe_sets_by_organism.get(organism_common_name, {})
+    probe_set = (
+        probe_set_config if isinstance(probe_set_config, str) else probe_set_config.get(library_prep_method_name, "")
+    )
     reference_name = select_reference_name(
         config=config,
         modality=modality,
         organism_common_name=organism_common_name,
         library_prep_method_name=library_prep_method_name,
     )
+    if batch_processing and modality in ("RTX", "RFX"):
+        input_name = fastq_record.fastq_name
+        input_name_flag = "fastq-names"
+    else:
+        input_name = fastq_record.load_name
+        input_name_flag = "load-names"
+
     command_template_field_values = {
         "reference_name": reference_name,
         "load_name": fastq_record.load_name,
+        "input_name": input_name,
+        "input_name_flag": input_name_flag,
         "email": email,
         "chemistry": chemistry_by_library_prep.get(library_prep_method_name, ""),
-        "probe_set": probe_sets_by_organism.get(organism_common_name, {}).get(library_prep_method_name, ""),
+        "probe_set": probe_set,
         "execution_vcpus": command_template.get("execution_vcpus", ""),
     }
 
     command_args = list(command_template["command"])
     for argument in command_template["arguments"]:
-        command_args.append(argument["flag"])
+        command_args.append(argument["flag"].format(**command_template_field_values))
         if "value" in argument:
             command_args.append(argument["value"].format(**command_template_field_values))
-
     return command_args, command_template["spacing"]
 
 
@@ -204,6 +218,7 @@ def build_alignment_job_command_record(
     config: dict,
     email: str,
     force_submission: str | None,
+    batch_processing: bool = False,
 ) -> dict:
     """
     Decide whether to run alignment for one fastq sample and build the command if needed.
@@ -217,6 +232,7 @@ def build_alignment_job_command_record(
     config: The OCS workflow configuration.
     email: The notification email address for OCS.
     force_submission: Set to "alignment" to run alignment even if it would normally be skipped.
+    batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
 
     Returns:
     Alignment fields for one row of the submission manifest. Command fields are empty when
@@ -258,6 +274,7 @@ def build_alignment_job_command_record(
                 modality=modality,
                 email=email,
                 command_template=align_command_config,
+                batch_processing=batch_processing,
             )
 
     return {
@@ -280,6 +297,7 @@ def build_post_alignment_job_command_record(
     email: str,
     force_submission: str | None,
     alignment_should_execute: bool,
+    batch_processing: bool = False,
 ) -> dict:
     """
     Decide whether to run post-alignment for one fastq sample and build the command if needed.
@@ -292,6 +310,7 @@ def build_post_alignment_job_command_record(
     force_submission: Set to "post-alignment" to run post-alignment even if it would normally
         be skipped.
     alignment_should_execute: Whether alignment is scheduled in the same pass.
+    batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
 
     Returns:
     Post-alignment fields for one row of the submission manifest. Command fields are empty
@@ -336,6 +355,7 @@ def build_post_alignment_job_command_record(
                 modality=modality,
                 email=email,
                 command_template=postalign_template,
+                batch_processing=batch_processing,
             )
 
     return {
@@ -358,6 +378,7 @@ def build_ocs_job_submission_command(
     email: str,
     force_submission: str | None,
     dry_run: bool,
+    batch_processing: bool = False,
 ) -> pd.DataFrame:
     """
     Build the full submission manifest with one row per fastq sample.
@@ -369,6 +390,7 @@ def build_ocs_job_submission_command(
     email: The notification email address recorded on each row.
     force_submission: Optionally force alignment or post-alignment to run.
     dry_run: Whether this run is a dry run (recorded on each row).
+    batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
 
     Returns:
     A dataframe ready for submission, with one row per fastq sample.
@@ -382,6 +404,7 @@ def build_ocs_job_submission_command(
             config=config,
             email=email,
             force_submission=force_submission,
+            batch_processing=batch_processing,
         )
 
         postalign_record = build_post_alignment_job_command_record(
@@ -391,6 +414,7 @@ def build_ocs_job_submission_command(
             email=email,
             force_submission=force_submission,
             alignment_should_execute=alignment_record["align_should_execute"],
+            batch_processing=batch_processing,
         )
 
         shared_record = {

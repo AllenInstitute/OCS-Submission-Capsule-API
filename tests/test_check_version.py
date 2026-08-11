@@ -8,8 +8,8 @@ import pytest
 
 
 def load_release_script() -> ModuleType:
-    script_path = Path(__file__).resolve().parents[1] / "scripts" / "check_release_version.py"
-    spec = importlib.util.spec_from_file_location("check_release_version", script_path)
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "release" / "check_version.py"
+    spec = importlib.util.spec_from_file_location("check_version", script_path)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)

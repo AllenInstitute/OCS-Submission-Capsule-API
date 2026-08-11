@@ -32,7 +32,7 @@ jobs:
 
       - name: Verify tag matches pyproject.toml and CHANGELOG
         run: >
-          uv run --python 3.12 python scripts/check_release_version.py
+          uv run --python 3.12 python scripts/release/check_version.py
           "${GITHUB_REF_NAME}" --require-ancestor-ref origin/main
 
       - name: Install project and dev dependencies (from lockfile)
@@ -52,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes_file="$(mktemp)"
-          uv run --python 3.12 python scripts/check_release_version.py "${GITHUB_REF_NAME}" --notes > "$notes_file"
+          uv run --python 3.12 python scripts/release/check_version.py "${GITHUB_REF_NAME}" --notes > "$notes_file"
           gh release create "${GITHUB_REF_NAME}" \
             --title "${GITHUB_REF_NAME}" \
             --notes-file "$notes_file"

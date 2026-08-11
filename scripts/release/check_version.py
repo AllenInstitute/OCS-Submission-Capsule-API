@@ -4,9 +4,9 @@
 The Release workflow (.github/workflows/release.yml) runs this against the tag
 that triggered it (e.g. ``v0.1.1``). Two modes:
 
-    check_release_version.py v0.1.1            # verify tag == pyproject == CHANGELOG
-    check_release_version.py v0.1.1 --notes    # print that version's CHANGELOG body
-    check_release_version.py v0.1.1 --require-ancestor-ref origin/main
+    check_version.py v0.1.1            # verify tag == pyproject == CHANGELOG
+    check_version.py v0.1.1 --notes    # print that version's CHANGELOG body
+    check_version.py v0.1.1 --require-ancestor-ref origin/main
 
 Verification fails (non-zero exit) if the tag version does not match
 ``pyproject.toml`` or if CHANGELOG.md has no matching ``## [x.y.z]`` section, so a

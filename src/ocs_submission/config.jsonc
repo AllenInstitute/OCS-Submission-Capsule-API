@@ -15,6 +15,8 @@
   //
   // Argument values support these placeholders:
   // - {reference_name}
+  // - {input_name}: the selected load or FASTQ name
+  // - {input_name_flag}: "load-names" or "fastq-names", used to form the matching CLI flag
   // - {load_name}
   // - {email}
   // - {chemistry}
@@ -22,7 +24,9 @@
   // - {execution_vcpus}
   "references": {
     "human": {
-      "all": "human_10x_grch38_genome_star2.7.1a"
+      "RTX": "human_10x_grch38_genome_star2.7.1a",
+      "MTX": "human_10x_grch38_genome_star2.7.1a",
+      "RFX": "human_10x_grch38-2024-a_probe-genome_cr-v9-0-0"
     },
     "mouse": {
       "MTX": "mouse_10x_mm10_genome_star2.7.1a",
@@ -31,7 +35,6 @@
         "library_preps": {
           "10xV4_FX16": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1",
           "10xV4_FX16-TK": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1",
-          "10xV4_FX16-TK_BC": "mouse_10x_mm10-flex-custom-v1_probe-genome_cr9.0.1",
           "10xFXv2": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
         }
       }
@@ -116,15 +119,16 @@
       "10xV4_FX4": "mouse_10x_mm10-egfp-mscarlet-vbc_chromium_v1.1_cellflex_probe_set",
       "10xV4_FX16": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set",
       "10xV4_FX16-TK": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set",
-      "10xV4_FX16-TK_BC": "mouse_10x_mm10-flex-custom-v1_chromium_v1.1_cellflex_probe_set",
       "10xFXv2": "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set"
-    }
+    },
+    "human": "human_10x_grch38-2024-A_chromium_v2.0_cellflex_probe_set"
   },
   "chemistry_by_library_prep": {
     "10xV3.1D": "SC3Pv3",
     "10xRseq_Mult_noATAC": "ARC-v1",
     "10xV3.1_HT": "SC3Pv3HT",
     "10xV4": "SC3Pv4",
+    "10xV4-TK": "SC3Pv4",
     "10Xv2": "SC3Pv2",
     "10Xv3.1": "SC3Pv3"
   },
@@ -318,8 +322,8 @@
               "value": "cellranger-rnaseq"
             },
             {
-              "flag": "--load-names",
-              "value": "{load_name}"
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
             },
             {
               "flag": "--asset-tag",
@@ -344,8 +348,7 @@
           "name": "multi",
           "match": {
             "library_preps": [
-              "10xV3.1_HT_CP",
-              "10xV3.1_HT_CP-BC"
+              "10xV3.1_HT_CP"
             ]
           },
           "command": [
@@ -364,8 +367,8 @@
               "value": "cellranger-multi"
             },
             {
-              "flag": "--load-names",
-              "value": "{load_name}"
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
             },
             {
               "flag": "--asset-tag",
@@ -409,8 +412,8 @@
               "value": "cellranger-multi"
             },
             {
-              "flag": "--load-names",
-              "value": "{load_name}"
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
             },
             {
               "flag": "--asset-tag",
@@ -435,7 +438,8 @@
           "name": "10xV4",
           "match": {
             "library_preps": [
-              "10xV4"
+              "10xV4",
+              "10xV4-TK"
             ]
           },
           "command": [
@@ -454,8 +458,8 @@
               "value": "cellranger-rnaseq"
             },
             {
-              "flag": "--load-names",
-              "value": "{load_name}"
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
             },
             {
               "flag": "--asset-tag",
@@ -500,8 +504,8 @@
               "value": "cellranger-multi"
             },
             {
-              "flag": "--load-names",
-              "value": "{load_name}"
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
             },
             {
               "flag": "--asset-tag",
@@ -545,9 +549,9 @@
               "10Xv3",
               "10Xv2",
               "10xV3.1_HT_CP",
-              "10xV3.1_HT_CP-BC",
               "10xV4_PX-Placeholder",
               "10xV4",
+              "10xV4-TK",
               "10xV4_FX4",
               "10xV4_FX4-cps"
             ]
@@ -568,8 +572,8 @@
               "value": "latest"
             },
             {
-              "flag": "--load-names",
-              "value": "{load_name}"
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
             },
             {
               "flag": "--notify-on",
@@ -591,8 +595,60 @@
           "match": {
             "library_preps": [
               "10xV4_FX16",
-              "10xV4_FX16-TK",
-              "10xV4_FX16-TK_BC",
+              "10xV4_FX16-TK"
+            ]
+          },
+          "command": [
+            "ocs",
+            "fastqs",
+            "align",
+            "tenx-rnaseq-multi"
+          ],
+          "arguments": [
+            {
+              "flag": "--reference-names",
+              "value": "{reference_name}"
+            },
+            {
+              "flag": "--asset-name",
+              "value": "tenx-rnaseq-multi"
+            },
+            {
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
+            },
+            {
+              "flag": "--asset-tag",
+              "value": "9.0.1"
+            },
+            {
+              "flag": "--cellflex-probe-set-name",
+              "value": "{probe_set}"
+            },
+            {
+              "flag": "--cellranger-addopts",
+              "value": "--create-bam=true"
+            },
+            {
+              "flag": "--execution-vcpus",
+              "value": "{execution_vcpus}"
+            },
+            {
+              "flag": "--notify-on",
+              "value": "FAILED"
+            },
+            {
+              "flag": "--notify",
+              "value": "{email}"
+            }
+          ],
+          "execution_vcpus": 180,
+          "spacing": 180
+        },
+        {
+          "name": "10xFXv2",
+          "match": {
+            "library_preps": [
               "10xFXv2"
             ]
           },
@@ -612,12 +668,12 @@
               "value": "tenx-rnaseq-multi"
             },
             {
-              "flag": "--load-names",
-              "value": "{load_name}"
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
             },
             {
               "flag": "--asset-tag",
-              "value": "9.0.1"
+              "value": "10.0.0"
             },
             {
               "flag": "--cellflex-probe-set-name",
@@ -651,7 +707,6 @@
             "library_preps": [
               "10xV4_FX16",
               "10xV4_FX16-TK",
-              "10xV4_FX16-TK_BC",
               "10xFXv2"
             ]
           },
@@ -671,8 +726,8 @@
               "value": "latest"
             },
             {
-              "flag": "--load-names",
-              "value": "{load_name}"
+              "flag": "--{input_name_flag}",
+              "value": "{input_name}"
             },
             {
               "flag": "--notify-on",

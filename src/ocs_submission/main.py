@@ -108,7 +108,16 @@ def parse_args() -> argparse.Namespace:
         "--audit",
         choices=("true", "false"),
         default="false",
-        help=("Run the LIMS audit each time an alignment command is executed (true/false, default: false)"),
+        help="Run the LIMS audit each time an alignment command is executed (true/false, default: false)",
+    )
+    parser.add_argument(
+        "--batch-processing",
+        choices=("true", "false"),
+        default="false",
+        help=(
+            "Use FASTQ names instead of load names for RTX/RFX alignment and post-alignment commands "
+            "(true/false, default: false)"
+        ),
     )
     parser.add_argument(
         "--config",
@@ -122,7 +131,7 @@ def main() -> None:
     """
     Run the OCS submission workflow.
 
-    The workflow loads FASTQ records from one input source, builds and submits or
+    This workflow loads FASTQ records from one input source, builds and submits or
     dry-runs alignment and post-alignment commands, writes a JSON manifest, and sends
     summary and audit emails.
     """
@@ -174,6 +183,7 @@ def main() -> None:
         email=args.email,
         force_submission=args.force_submission,
         dry_run=dry_run,
+        batch_processing=args.batch_processing == "true",
     )
 
     ocs_job_commands_df = execute_ocs_submission_commands(
