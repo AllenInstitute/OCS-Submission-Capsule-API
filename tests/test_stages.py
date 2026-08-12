@@ -4,6 +4,7 @@ from ocs_submission.stages import Stage
 
 
 def test_stage_vocabulary():
+    """When listing pipeline stages, check the OCS result name, database name, and status column for each stage."""
     assert [
         (
             stage.ocs_stage_name,
@@ -20,6 +21,7 @@ def test_stage_vocabulary():
 
 
 def test_running_db_names_map_to_ocs_stage_names():
+    """When reading a database job name, check that it maps to the correct OCS stage name."""
     assert {
         Stage.ALIGNMENT.running_db_stage_name: Stage.ALIGNMENT.ocs_stage_name,
         Stage.POST_ALIGNMENT.running_db_stage_name: Stage.POST_ALIGNMENT.ocs_stage_name,

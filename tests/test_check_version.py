@@ -33,12 +33,15 @@ def release_script(tmp_path, monkeypatch) -> ModuleType:
 
 
 def test_main_accepts_matching_tag_version_and_changelog(release_script, capsys):
+    """When checking a release, check that it passes when the Git tag, package version, and changelog version match."""
     assert release_script.main(["v1.2.3"]) == 0
 
     assert capsys.readouterr().out.strip() == "ok: v1.2.3 matches pyproject.toml and CHANGELOG.md"
 
 
 def test_main_rejects_tag_that_is_not_on_required_ref(release_script, monkeypatch):
+    """When checking a release tag, check that it fails when the tag is not on the required branch."""
+
     def fake_git_output(args: list[str]) -> str:
         if args == ["rev-list", "-n", "1", "v1.2.3"]:
             return "tag-commit"
@@ -56,6 +59,8 @@ def test_main_rejects_tag_that_is_not_on_required_ref(release_script, monkeypatc
 
 
 def test_main_accepts_tag_on_required_ref(release_script, monkeypatch):
+    """When checking a release tag, check that it passes when the tag is on the required branch."""
+
     def fake_git_output(args: list[str]) -> str:
         if args == ["rev-list", "-n", "1", "v1.2.3"]:
             return "tag-commit"

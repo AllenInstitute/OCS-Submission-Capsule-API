@@ -6,6 +6,7 @@ from ocs_submission import running_jobs_db
 
 
 def test_get_connection_returns_pooled_connection_when_alive():
+    """When getting a database connection, check that an open connection is returned from the pool."""
     conn = MagicMock()
     connection_pool = MagicMock()
     connection_pool.getconn.return_value = conn
@@ -18,6 +19,7 @@ def test_get_connection_returns_pooled_connection_when_alive():
 
 
 def test_get_connection_discards_server_closed_idle_connection():
+    """When getting a database connection, check that a closed connection is discarded and replaced from the pool."""
     stale_conn = MagicMock()
     stale_conn.rollback.side_effect = OperationalError("SSL connection has been closed unexpectedly")
     fresh_conn = MagicMock()

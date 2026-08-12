@@ -11,21 +11,21 @@ from ocs_submission.audit import audit
     [
         pytest.param(
             "MTX-22068",
-            "-- Optimized ~April 2026",
+            "JOIN rna_amplification_inputs",
             audit.MTXAuditor,
             "MTX",
             id="mtx",
         ),
         pytest.param(
             "RTX-24047",
-            "-- Optimized ~April 2026",
+            "JOIN rna_amplification_inputs",
             audit.RTXAuditor,
             "RTX",
             id="rtx",
         ),
         pytest.param(
             "RFX-34056",
-            "-- CellFlex LIMS metadata query",
+            "JOIN facs_wells_rseq_experiment_components",
             audit.RTXAuditor,
             "RFX",
             id="rfx",
@@ -38,6 +38,7 @@ def test__run_audit__uses_modality_query_and_rules(
     expected_auditor,
     expected_modality,
 ):
+    """When auditing an MTX, RTX, or RFX batch, check that it uses the matching LIMS query and rules."""
     cursor = MagicMock()
     cursor.fetchall.return_value = [(batch_name,)]
     cursor.description = [("batch_vendor_name",)]

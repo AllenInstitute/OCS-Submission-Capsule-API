@@ -7,14 +7,22 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- `--batch-processing true|false` option. When enabled for RTX or RFX, alignment and post-alignment commands use
+  `--fastq-names`; otherwise they use `--load-names`.
+- RFX CellFlex LIMS audit using the same audit rules as RTX.
+
 ### Changed
 
 - Moved the release-version validator to `scripts/release/check_version.py`.
+- Replaced the legacy MTX and RTX LIMS audit queries with CTE-based RNA/multiome and CellFlex metadata queries.
 
 ### Fixed
 
 - Samples whose library prep is not configured for a scheduled stage are now skipped instead of stopping command
   construction, and their fastq names are reported in the logs and submission summary email.
+- Commands now support a single probe set shared by an organism as well as probe sets mapped by library prep.
 
 ## [0.1.2] - 2026-07-14
 

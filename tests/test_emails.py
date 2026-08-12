@@ -40,6 +40,7 @@ def _capture_body(monkeypatch) -> list[str]:
 
 
 def test_summary_email_reports_unconfigured_library_preps(monkeypatch):
+    """When sending a summary email, check that it lists fastq samples with no command for their library prep."""
     sent_bodies = _capture_body(monkeypatch)
     manifest = pd.DataFrame(
         [
@@ -65,6 +66,7 @@ def test_summary_email_reports_unconfigured_library_preps(monkeypatch):
 
 
 def test_summary_email_omits_report_line_when_all_configured(monkeypatch):
+    """When sending a summary email, check that it does not mention unconfigured library preps when every fastq sample has a command."""
     sent_bodies = _capture_body(monkeypatch)
     manifest = pd.DataFrame(
         [
@@ -86,6 +88,7 @@ def test_summary_email_omits_report_line_when_all_configured(monkeypatch):
 
 
 def test_summary_email_sends_when_only_unconfigured_preps(monkeypatch):
+    """When no jobs ran, check that a summary email is still sent for a fastq sample with no command."""
     sent_bodies = _capture_body(monkeypatch)
     manifest = pd.DataFrame(
         [_manifest_row(fastq_name="x", align_library_prep_unconfigured=True)],

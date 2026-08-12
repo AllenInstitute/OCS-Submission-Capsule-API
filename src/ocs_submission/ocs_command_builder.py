@@ -74,7 +74,7 @@ def select_command_config(
     Returns:
     The matching command template from the config, or ``None`` when the library prep is not
     listed for this modality and stage at all. The caller skips the sample and reports it.
-    An unlisted library prep is expected (not every prep runs on every modality), but a listed
+    An unlisted library prep is expected (not every prep runs on every modality), but a listed library
     prep whose organism is not covered is a configuration error, so that case raises instead.
     """
     workflow = config["workflows"][modality]

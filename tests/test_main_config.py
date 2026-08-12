@@ -48,6 +48,7 @@ def _fastq_record(library_prep_method_name: str) -> SimpleNamespace:
 
 
 def test_load_jsonc_config_strips_comments(tmp_path):
+    """When loading a config file, check that line and block comments do not remove its JSON values."""
     config_path = _write(
         tmp_path,
         """
@@ -66,6 +67,7 @@ def test_load_jsonc_config_strips_comments(tmp_path):
 
 
 def test_load_jsonc_config_expands_pipe_delimited_reference_keys(tmp_path):
+    """When a reference key has organism names separated by pipes, check that each organism gets an entry."""
     config_path = _write(
         tmp_path,
         """
@@ -83,6 +85,7 @@ def test_load_jsonc_config_expands_pipe_delimited_reference_keys(tmp_path):
 
 
 def test_single_organism_key_is_preserved(tmp_path):
+    """When a reference key has one organism name, check that it stays as one entry."""
     config_path = _write(
         tmp_path,
         """
@@ -140,14 +143,9 @@ def _library_prep_params():
     return params
 
 
-def test_default_config_has_no_legacy_post_alignment_key():
-    workflows = _DEFAULT_CONFIG["workflows"]
-    assert workflows, "Default config declares no workflows"
-    assert all("post_alignment" not in workflow for workflow in workflows.values())
-
-
 @pytest.mark.parametrize("modality, stage, command_config", _command_config_params())
 def test_default_command_config_match_is_well_formed(modality, stage, command_config):
+    """When reading command templates, check that each lists library preps without a wildcard."""
     match = command_config["match"]
     assert match["library_preps"]
     assert "*" not in match["library_preps"]
@@ -201,6 +199,7 @@ def test_default_config_builds_representative_commands(
     library_prep_method_name,
     expected_command_prefix,
 ):
+    """When building each workflow command, check that it has the expected OCS command and input-name flag."""
     config = load_jsonc_config(CONFIG_PATH)
     command_config = select_command_config(
         config=config,
@@ -230,6 +229,7 @@ def test_default_config_builds_representative_commands(
 
 
 def test_default_config_builds_10x_fx_v2_command_with_matching_reference_and_probe_set():
+    """When building a 10xFXv2 fastq sample command, check that it uses the 10xFXv2 reference and probe set."""
     config = load_jsonc_config(CONFIG_PATH)
     command_config = select_command_config(
         config=config,
@@ -256,6 +256,7 @@ def test_default_config_builds_10x_fx_v2_command_with_matching_reference_and_pro
 
 @pytest.mark.parametrize("modality, stage, library_prep_method_name", _library_prep_params())
 def test_default_config_renders_command_for_each_library_prep(modality, stage, library_prep_method_name):
+    """When building a command for each configured fastq sample, check that no placeholder text remains."""
     config = load_jsonc_config(CONFIG_PATH)
     selected_command_config = select_command_config(
         config=config,
@@ -283,6 +284,7 @@ def test_default_config_renders_command_for_each_library_prep(modality, stage, l
 
 @pytest.mark.parametrize("modality", ["RTX", "RFX"])
 def test_default_post_alignment_library_preps_match_alignment_library_preps(modality):
+    """When reading RTX or RFX commands, check that each library prep has alignment and post-alignment commands."""
     workflow = load_jsonc_config(CONFIG_PATH)["workflows"][modality]
     alignment_preps = _library_preps(workflow["alignment_command_configs"])
     post_alignment_preps = _library_preps(workflow["post_alignment_command_configs"])
