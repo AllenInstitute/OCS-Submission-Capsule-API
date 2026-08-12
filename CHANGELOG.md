@@ -7,6 +7,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-11
+
 ### Added
 
 - `--batch-processing true|false` option. When enabled for RTX or RFX, alignment and post-alignment commands use
@@ -75,7 +77,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Job manifest output and PostgreSQL tracker integration
 - LIMS audit and AWS SES email summaries
 
-[Unreleased]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AllenInstitute/OCS-Submission-Capsule-API/releases/tag/v0.1.0

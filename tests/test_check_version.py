@@ -32,6 +32,14 @@ def release_script(tmp_path, monkeypatch) -> ModuleType:
     return module
 
 
+def test_release_script_uses_repository_metadata_files():
+    """When loading the release script, check that it finds the repository package and changelog files."""
+    module = load_release_script()
+
+    assert module.PYPROJECT.is_file()
+    assert module.CHANGELOG.is_file()
+
+
 def test_main_accepts_matching_tag_version_and_changelog(release_script, capsys):
     """When checking a release, check that it passes when the Git tag, package version, and changelog version match."""
     assert release_script.main(["v1.2.3"]) == 0
