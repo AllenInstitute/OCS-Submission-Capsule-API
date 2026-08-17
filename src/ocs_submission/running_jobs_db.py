@@ -1,7 +1,7 @@
-"""PostgreSQL helpers for the running jobs database table.
+"""PostgreSQL helpers for the running-jobs table.
 
-Tracks OCS jobs submitted by this capsule so their status can be re-checked on later runs,
-including when OCS itself has not yet produced a result entry for a pipeline stage.
+Track jobs submitted by this capsule so later runs can recheck their status, including before
+OCS has produced a result for a pipeline stage.
 """
 
 from __future__ import annotations
@@ -20,14 +20,14 @@ _connection_pool: pool.ThreadedConnectionPool | None = None
 
 def init_connection_pool(min_conn=1, max_conn=5):
     """
-    Creates the shared tracker-DB connection pool on first call and returns it thereafter.
+    Create the shared tracker-DB connection pool on first call and reuse it thereafter.
 
     Parameters:
     min_conn: The minimum number of connections to keep open against ``RUNNING_JOBS_DB_URL``.
     max_conn: The maximum number of connections to keep open against ``RUNNING_JOBS_DB_URL``.
 
     Returns:
-    The shared ``pool.ThreadedConnectionPool``, created on first call and reused thereafter.
+    Return the shared ``pool.ThreadedConnectionPool``.
     """
     global _connection_pool
     if _connection_pool is None:
@@ -41,8 +41,7 @@ def init_connection_pool(min_conn=1, max_conn=5):
 
 def get_connection():
     """
-    If an idle connection has been closed by the server, such as after a long wait for jobs,
-    it is discarded and replaced with a new one before being returned.
+    Replace an idle connection if the server closed it during a long job wait.
 
     Returns:
     A connection borrowed from the shared connection pool.
@@ -59,12 +58,12 @@ def get_connection():
 
 def return_connection(conn):
     """
-    Returns a connection back to the pool.
+    Return a connection to the pool.
 
     Parameters:
     conn: A connection previously obtained from ``get_connection``.
     """
-    # A connection can only exist after the pool was initialized by get_connection().
+    # get_connection() initializes the pool before returning a connection.
     assert _connection_pool is not None
     _connection_pool.putconn(conn)
 
@@ -78,9 +77,7 @@ def add_job(
     batch_name_from_vendor: str | None = None,
 ):
     """
-    Upsert the ``running_jobs`` row for a (``fastq_name``, ``job_type``) job.
-
-    The row is inserted if missing or updated in place if it already exists.
+    Insert or update the ``running_jobs`` row for a FASTQ sample and stage.
 
     Parameters:
     fastq_name: The FASTQ name identifying the job.
@@ -135,7 +132,7 @@ def add_job(
 
 def get_job(fastq_name: str, running_db_stage_name: str) -> dict | None:
     """
-    Looks up a single ``running_jobs`` row by FASTQ name and stage.
+    Return one ``running_jobs`` row for a FASTQ sample and stage.
 
     Parameters:
     fastq_name: The FASTQ name identifying the job.
@@ -162,7 +159,7 @@ def get_job(fastq_name: str, running_db_stage_name: str) -> dict | None:
 
 def check_job_status(fastq_name: str, stage: Stage) -> str | None:
     """
-    Refresh a tracked job's status from OCS and write it through ``update_job_status``.
+    Check a tracked job's OCS status and save the new status.
 
     Parameters:
     fastq_name: The FASTQ name identifying the job.
@@ -204,7 +201,7 @@ def check_job_status(fastq_name: str, stage: Stage) -> str | None:
 
 def update_job_status(fastq_name: str, running_db_stage_name: str, status: str):
     """
-    Writes a new status and refreshes ``updated_at`` for the tracked job's ``running_jobs`` row.
+    Save a new status and update ``updated_at`` for a tracked job.
 
     Parameters:
     fastq_name: The FASTQ name identifying the job.

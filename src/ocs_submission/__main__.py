@@ -1,4 +1,4 @@
-"""Allow ``python -m ocs_submission`` as an alternative to the ``ocs-submission`` script."""
+"""Run the package with ``python -m ocs_submission``."""
 
 from .main import main
 

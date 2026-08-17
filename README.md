@@ -5,23 +5,21 @@
 
 ## Overview
 
-The purpose of this codebase is to provide bioinformatics analysts with a user-friendly interface, built on Code Ocean, for submitting and managing ocs jobs.
+OCS Submission Capsule reads FASTQ metadata, checks OCS stage status, builds commands, and submits jobs through the `ocs` CLI.
 
-Previously, analysts needed to manually monitor OCS to determine when a batch or FASTQ sample was ready for the next processing stage. For example, checking whether the ingest stage had finished before submitting an alignment jobs. This codebase automates that process by identifying fastq samples that are ready and automatically submitting the next stage of the workflow.
+It supports daily runs and backfills. Each run writes a manifest with one row per FASTQ sample. The manifest records command values, submission status, demand IDs, errors, and timestamps.
 
-The system is designed to scale efficiently, supporting hundreds to thousands of jobs. When submission limits are reached, jobs are automatically placed in a queue and submitted as capacity becomes available on OCS.
+When OCS reaches the job limit, the capsule waits and checks the limit again before submitting the next command.
 
-In addition to daily processing, this codebase simplifies backfill workflows for historical FASTQ samples that need to be reprocessed through OCS. Previously, backfills were executed using custom Bash scripts, making it difficult to track configurations, execution history, and reproducibility. This codebase addresses those challenges by generating a job manifest for every run. The manifest records submitted jobs, failed jobs, and all parameters used to construct each job command, ensuring complete traceability and reproducibility of OCS submissions.
+The audit queries LIMS for a vendor batch, writes CSV reports for missing fields, and sends a plain-text email. Use the CellFlex LIMS query for an RFX audit.
 
-There is also an Audit feature that queries the LIMS database for a given batch name from vendor. It checks that all required metadata fields are present, writes CSV reports for any failed flags, and emails a plain-text summary.
-
-The codebase is lastly highly configurable. New alignment and post-alignment workflows can be added through a centralized configuration file, enabling the system to adapt to evolving pipeline requirements without requiring significant code changes.
+Add alignment and post-alignment commands in `config.jsonc`. The code reads those command templates at runtime.
 
 ## Table of Contents
 
-* [Getting started](#getting-started)
-* [What it does](#what-it-does)
-* [How it works](#how-it-works)
+* [Run it](#run-it)
+* [Commands and stages](#commands-and-stages)
+* [Workflow](#workflow)
 * [Inputs](#inputs)
 * [CLI options](#cli-options)
 * [Configuration](#configuration)
@@ -33,9 +31,9 @@ The codebase is lastly highly configurable. New alignment and post-alignment wor
 * [Authors](#authors)
 * [Acknowledgments](#acknowledgments)
 
-## Getting started
+## Run it
 
-Follow these steps to run the OCS Submission Capsule:
+Run these commands from a Python 3.12+ environment with the `ocs` CLI on `PATH`.
 
 1. Install the package:
 
@@ -93,22 +91,23 @@ Follow these steps to run the OCS Submission Capsule:
 
 > **Note:** Requires Python 3.12+ and the `ocs` CLI available on `PATH`.
 
-## What it does
+## Commands and stages
 
-- Checks ingest, alignment, and post-alignment status for each Fastq sample on OCS.
-- Loads FASTQ metadata from an OCS Tracker exporter CSV, a batch name from vendor, or list of fastq names.
-- Builds alignment and post-alignment OCS commands from `config.jsonc` templates.
-- Skips and reports FASTQ samples whose library prep is not listed in the command configuration for a scheduled stage.
-- Skips any work that is already complete or currently in progress.
-- Submits jobs through the `ocs` CLI, respecting a configurable job limit.
-- Tracks submitted jobs in PostgreSQL so in-flight jobs can be re-checked on later runs.
-- Optionally runs a LIMS audit for every batch name from vendor.
-- Writes a JSON manifest of all planned and attempted commands.
-- Sends summary emails for successful and failed submissions via AWS SES.
+- Check ingest, alignment, and post-alignment status for each FASTQ sample on OCS.
+- Load FASTQ metadata from an OCS Tracker export CSV, a vendor batch name, or FASTQ names.
+- Create an alignment command only after FASTQ sample ingest is complete.
+- Build a post-alignment command only after alignment is complete.
+- Skip a FASTQ sample when its library prep has no command.
+- Skip a stage when it is complete or already in progress.
+- Submit commands through the `ocs` CLI within the configured job limit.
+- Save submitted jobs in PostgreSQL so later runs can check their status.
+- Run a LIMS audit for a vendor batch when `--audit true` is set.
+- Write a JSON manifest with planned commands and submission results.
+- Send submission summaries through AWS SES.
 
-## How it works
+## Workflow
 
-The capsule follows a linear pipeline: it loads FASTQ samples metadata, checks where each sample stands in the ingest → align → postalign pipeline, builds the appropriate OCS commands, and can submit progress a fastq sample into the next stage in the pipeline. When `--audit true` is passed, it also queries the LIMS database to verify that sample metadata is complete and flags any missing fields before proceeding.
+For each FASTQ sample, the capsule loads metadata, checks stage status, builds the next command, submits the command or prints it during a dry run, and writes the result to the manifest. When `--audit true` is set, it checks the batch metadata in LIMS and writes missing-data reports.
 ```
 Input (exporter CSV / batch name / FASTQ names)
         │
@@ -181,7 +180,7 @@ ocs-submission \
 | `--modality` | Yes | Workflow modality: `RTX`, `MTX`, or `RFX` |
 | `--ocs-tracker-exporter` | No | Path to an OCS Tracker export CSV |
 | `--batch-name-from-vendor` | No | Batch Name From Vendor |
-| `--fastq-names` | No | One or more Fastq Names |
+| `--fastq-names` | No | One or more FASTQ names |
 | `--force-submission` | No | Force `alignment` or `post-alignment` regardless of current status |
 | `--email`, `-e` | No | Email for OCS job notifications and run summary emails |
 | `--dry-run` | No | `true` or `false` (default `false`) — log commands without executing |
@@ -191,7 +190,7 @@ ocs-submission \
 
 ## Configuration
 
-The capsule reads workflow templates and status mappings from:
+The capsule reads command templates and status mappings from:
 
 ```
 src/ocs_submission/config.jsonc
@@ -210,8 +209,7 @@ Key sections:
 
 Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{input_name}`, `{input_name_flag}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`. `{input_name}` and `{input_name_flag}` are used together to render either `--load-names <load_name>` or, for RTX/RFX batch processing, `--fastq-names <fastq_name>`.
 
-When alignment or post-alignment is due but the sample's library prep is not listed in that stage's command
-configuration, the capsule skips that stage and reports the FASTQ name in the final log and submission summary email.
+When alignment or post-alignment is due but a FASTQ sample's library prep has no command, the capsule skips that stage and reports the FASTQ name in the log and summary email.
 Missing chemistry and probe-set mappings continue to render as empty command values.
 
 A modality reference can be a single reference name, preserving the existing behavior:
@@ -306,7 +304,7 @@ The test suite covers command-building and config logic and does not require a l
 
 ### Releases
 
-Releases are tag-driven. Pushing a `vMAJOR.MINOR.PATCH` tag triggers the **Release** workflow (`.github/workflows/release.yml`), which verifies the tag, runs the tests, and publishes a GitHub release with notes taken from `CHANGELOG.md`.
+Pushing a `vMAJOR.MINOR.PATCH` tag starts the **Release** workflow (`.github/workflows/release.yml`). The workflow runs the tests and publishes a GitHub release from `CHANGELOG.md`.
 
 To cut a release:
 
@@ -340,10 +338,9 @@ To cut a release:
    git push origin v0.2.0
    ```
 
-The workflow fails the release if the tag does not point at a commit on `main`,
-does not match `pyproject.toml`, or has no matching `CHANGELOG.md` section
-(`scripts/release/check_version.py`). That keeps the release tag, package
-version, changelog, and published GitHub release in sync.
+Before creating a release, check that the Git tag, package version in
+`pyproject.toml`, and version section in `CHANGELOG.md` match. The release check
+script is `scripts/release/check_version.py`.
 
 ## Authors
 

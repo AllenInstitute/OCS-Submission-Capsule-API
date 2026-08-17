@@ -1,4 +1,4 @@
-"""OCS Submission Capsule.
+"""Submit OCS alignment and post-alignment jobs.
 
 Loads FASTQ status, builds alignment and post-alignment commands from configuration templates,
 optionally submits jobs to OCS, and sends email summaries.
@@ -39,7 +39,7 @@ DATA_MANIFEST_PATH = os.path.join(OUTPUT_DIR, "ocs_job_commands_manifest.json")
 
 def load_jsonc_config(config_path: str) -> dict:
     """
-    Loads a JSONC config file into a dict.
+    Load a JSONC config file into a dictionary.
 
     Comments are stripped and pipe-delimited organism keys are expanded.
 
@@ -47,7 +47,7 @@ def load_jsonc_config(config_path: str) -> dict:
     config_path: The path to the JSONC config file to load.
 
     Returns:
-    A dict containing the parsed configuration with an expanded ``references`` section.
+    A dictionary containing the parsed configuration with expanded ``references`` keys.
     """
     with open(config_path, "r") as file:
         jsonc_text = file.read()
@@ -66,10 +66,10 @@ def load_jsonc_config(config_path: str) -> dict:
 
 def parse_args() -> argparse.Namespace:
     """
-    Parses the submission script's command-line arguments from ``sys.argv``.
+    Return the submission script's command-line arguments.
 
     Returns:
-    An ``argparse.Namespace`` containing the parsed command-line arguments.
+    Return an ``argparse.Namespace`` with the command-line arguments.
     """
     parser = argparse.ArgumentParser(description="OCS Submission Capsule")
     parser.add_argument("--ocs-tracker-exporter", help="Export file from OCS Tracker")
@@ -86,12 +86,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--fastq-names",
         nargs="+",
-        help="One or more Fastq names (space-separated).",
+        help="One or more FASTQ names, separated by spaces.",
     )
     parser.add_argument(
         "--force-submission",
         choices=["alignment", "post-alignment"],
-        help="Force submission of alignment or post-alignment regardless of current status",
+        help="Submit alignment or post-alignment regardless of its current status",
     )
     parser.add_argument(
         "--email",
@@ -108,7 +108,7 @@ def parse_args() -> argparse.Namespace:
         "--audit",
         choices=("true", "false"),
         default="false",
-        help="Run the LIMS audit each time an alignment command is executed (true/false, default: false)",
+        help="Run the LIMS audit after each alignment command (true/false, default: false)",
     )
     parser.add_argument(
         "--batch-processing",

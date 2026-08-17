@@ -1,9 +1,9 @@
 -- CellFlex LIMS metadata query
--- General strategy
--- 1. Always Be Constraining (ABC): Try to constrain results of Common Table Expressions (CTE) as *early* and as significantly as possible.
---    The fewer tables and rows that a CTE has to consider, the less time and memory the overall query will take
--- 2. Make heavy use of `EXPLAIN (ANALYZE, BUFFERS)`: It can help narrow down CTEs and JOINs that are not efficient 
---    -  Rough memory usage can be estimated by `Memory (bytes) = actual rows * width
+-- Query strategy
+-- 1. Constrain each common table expression (CTE) as early as possible. Fewer input rows
+--    reduce query time and memory use.
+-- 2. Use `EXPLAIN (ANALYZE, BUFFERS)` to find slow CTEs and joins.
+--    Approximate memory use as `actual rows * width`.
 --EXPLAIN (ANALYZE, BUFFERS)
 WITH
 	core_cte AS (

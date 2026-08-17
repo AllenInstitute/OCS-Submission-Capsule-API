@@ -43,11 +43,9 @@ UNCONFIGURED_LIBRARY_PREP_COLUMNS = [f"{stage.ocs_stage_name}_library_prep_uncon
 
 def unconfigured_library_prep_fastq_names(ocs_job_commands_df: pd.DataFrame) -> list[str]:
     """
-    List the fastq names skipped because their library prep is not in the config file.
+    Return FASTQ names skipped because their library prep has no command.
 
-    A sample is skipped when a stage was due to run but no command config lists its library
-    prep for this modality. The run reports these fastq names in the logs and summary email
-    so the missing library preps can be added to the config.
+    The log and summary email report these FASTQ names.
     """
     unconfigured = ocs_job_commands_df[UNCONFIGURED_LIBRARY_PREP_COLUMNS].any(axis=1)
     return ocs_job_commands_df.loc[unconfigured, "fastq_name"].tolist()
@@ -61,8 +59,7 @@ def select_command_config(
     organism_common_name: str,
 ) -> dict | None:
     """
-    Pick the first command template that matches a fastq sample's stage, library prep,
-    and organism.
+    Return the first command template matching a FASTQ sample's stage, library prep, and organism.
 
     Parameters:
     config: The OCS workflow configuration.
@@ -72,10 +69,8 @@ def select_command_config(
     organism_common_name: The sample's organism.
 
     Returns:
-    The matching command template from the config, or ``None`` when the library prep is not
-    listed for this modality and stage at all. The caller skips the sample and reports it.
-    An unlisted library prep is expected (not every prep runs on every modality), but a listed library
-    prep whose organism is not covered is a configuration error, so that case raises instead.
+    Return the command template, or ``None`` when the library prep has no command for the stage.
+    Raise ``ValueError`` when the library prep has no command for the organism.
     """
     workflow = config["workflows"][modality]
     command_config_field, command_config_label = COMMAND_CONFIG_BY_STAGE[stage]
@@ -93,7 +88,7 @@ def select_command_config(
             continue
         library_prep_is_listed = True
 
-        # Omit organisms in config to match any organism.
+        # An omitted organism list matches every organism.
         organisms = match.get("organisms")
         if organisms is None or organism_common_name in organisms:
             return command_config
@@ -112,7 +107,7 @@ def select_reference_name(
     organism_common_name: str,
     library_prep_method_name: str,
 ) -> str:
-    """Select a reference by organism, modality, and optionally library prep."""
+    """Return the reference name for an organism, modality, and library prep."""
     organism_references = config["references"][organism_common_name]
     if modality in organism_references:
         reference_config = organism_references[modality]
@@ -157,7 +152,7 @@ def build_ocs_command_args(
     batch_processing: bool = False,
 ) -> tuple[list[str], int]:
     """
-    Fill in a command template for one fastq sample and return the command to run.
+    Build a command for one FASTQ sample from a command template.
 
     Parameters:
     config: The OCS workflow configuration.
@@ -168,9 +163,8 @@ def build_ocs_command_args(
     batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
 
     Returns:
-    The command as a list of strings, and how many seconds to wait before submitting the
-    next job. If no reference is configured for the sample's organism, modality, and
-    library prep when required, an error is raised.
+    Return command arguments and the wait time before the next command. Raise an error when
+    the sample has no configured reference.
     """
     library_prep_method_name = fastq_record.library_prep_method_name
     organism_common_name = fastq_record.organism_common_name
@@ -221,10 +215,9 @@ def build_alignment_job_command_record(
     batch_processing: bool = False,
 ) -> dict:
     """
-    Decide whether to run alignment for one fastq sample and build the command if needed.
+    Create an alignment command only after FASTQ sample ingest is complete.
 
-    Alignment runs when ingest is complete and alignment has not finished or started yet.
-    It also runs when the user forces alignment with force_submission.
+    Skip the command when alignment is complete or in progress, unless the user forces alignment.
 
     Parameters:
     fastq_record: The fastq sample and its ingest and alignment statuses.
@@ -235,9 +228,8 @@ def build_alignment_job_command_record(
     batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
 
     Returns:
-    Alignment fields for one row of the submission manifest. Command fields are empty when
-    alignment is not scheduled. ``align_library_prep_unconfigured`` is true when alignment was
-    due to run but the sample's library prep is not listed in the config, so it was skipped.
+    Return alignment fields for one manifest row. Leave command fields empty when alignment is
+    skipped. Set ``align_library_prep_unconfigured`` when the library prep has no command.
     """
     ingest_complete_statuses = config["status_mappings"]["ingest_complete"]
     align_complete_statuses = config["status_mappings"]["alignment_complete"]
@@ -300,7 +292,7 @@ def build_post_alignment_job_command_record(
     batch_processing: bool = False,
 ) -> dict:
     """
-    Decide whether to run post-alignment for one fastq sample and build the command if needed.
+    Build a post-alignment command only after alignment is complete.
 
     Parameters:
     fastq_record: The fastq sample and its alignment and post-alignment statuses.
@@ -313,10 +305,9 @@ def build_post_alignment_job_command_record(
     batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
 
     Returns:
-    Post-alignment fields for one row of the submission manifest. Command fields are empty
-    when post-alignment is not scheduled. ``postalign_library_prep_unconfigured`` is true when
-    post-alignment was due to run but the sample's library prep is not listed in the config, so
-    it was skipped.
+    Return post-alignment fields for one manifest row. Leave command fields empty when
+    post-alignment is skipped. Set ``postalign_library_prep_unconfigured`` when the library prep
+    has no command.
     """
     align_complete_statuses = config["status_mappings"]["alignment_complete"]
     postalign_complete_statuses = config["status_mappings"]["post_alignment_complete"]
@@ -381,7 +372,7 @@ def build_ocs_job_submission_command(
     batch_processing: bool = False,
 ) -> pd.DataFrame:
     """
-    Build the full submission manifest with one row per fastq sample.
+    Build the submission manifest with one row per FASTQ sample.
 
     Parameters:
     fastq_records_df: A dataframe of fastq samples, one row per sample.

@@ -31,7 +31,7 @@ def send_email(
     attachment_paths: list[str] | None = None,
 ) -> str:
     """
-    Sends a plain-text email via AWS SES.
+    Send a plain-text email through AWS SES.
 
     Parameters:
     email: The recipient email address.
@@ -85,7 +85,7 @@ def send_email(
 
 def _stage_outcome(fastq_record, ocs_stage_name: str) -> dict | None:
     """
-    Checks the outcome of a pipeline stage submission.
+    Return the outcome of a pipeline-stage submission.
 
     Parameters:
     record: Row from ocs_job_commands_df with fastq_name, load_name, and stage
@@ -111,7 +111,7 @@ def _stage_outcome(fastq_record, ocs_stage_name: str) -> dict | None:
 
 def _format_block(index: int, job_type: str, outcome: dict) -> str:
     """
-    Formats one submission or failure block for the email body.
+    Format one submission or failure block for the email body.
 
     Parameters:
     index: The 1-based position of this entry in its section.
@@ -137,13 +137,13 @@ def _format_block(index: int, job_type: str, outcome: dict) -> str:
 
 def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: str) -> None:
     """
-    Emails a summary of submissions and failures after execution.
+    Email a summary of submissions and failures after execution.
 
     Parameters:
     ocs_job_commands_df: The post-execution dataframe with align and postalign columns.
     notify_email: The recipient email address; an empty value is a no-op.
     """
-    # Do not send an email if no recipient was provided or there are no fastq samples to report.
+    # Nothing to report without a recipient or FASTQ samples.
     if not notify_email or ocs_job_commands_df.empty:
         return
 
@@ -163,7 +163,7 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
 
     unconfigured_fastq_names = unconfigured_library_prep_fastq_names(ocs_job_commands_df)
 
-    # Do not send an email if there are no submission attempts and no fastq samples with unconfigured library preps.
+    # Nothing to send when no jobs ran and no library preps need configuration.
     if not (success_list or failure_list or unconfigured_fastq_names):
         return
 
@@ -213,7 +213,7 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
 
 def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     """
-    Runs the LIMS audit for a batch and emails a summary with CSV attachments.
+    Run the LIMS audit for a batch and send a summary with CSV attachments.
 
     Parameters:
     batch_name_from_vendor: The vendor batch name to audit.
@@ -240,7 +240,7 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
             audit_message += "\nNote: age contains a literal 'unknown' value."
     else:
         audit_message = f"Missing {modality} data table generated for {batch_name_from_vendor}"
-        logger.warning(f"Missing {modality} data found. Please wait till corrected before proceeding with next steps.")
+        logger.warning(f"Missing {modality} data found. Wait for it to be corrected before proceeding.")
     body = "\n".join(
         [
             f"LIMS Audit for Batch: {batch_name_from_vendor}",

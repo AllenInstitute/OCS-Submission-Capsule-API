@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def execute_ocs_cmd(cmd_list: list[str]) -> subprocess.CompletedProcess:
     """
-    Executes an OCS CLI command and returns the output.
+    Execute an OCS CLI command and return its output.
 
     Parameters:
     cmd_list: A list of strings representing the OCS CLI command to execute.
@@ -32,13 +32,13 @@ def execute_ocs_cmd(cmd_list: list[str]) -> subprocess.CompletedProcess:
 
 def extract_demand_id_from_output(output_text: str) -> tuple[str | None, bool]:
     """
-    Parse and extracts the demand id from the output of an OCS CLI command.
+    Parse the demand ID from an OCS CLI response.
 
     Parameters:
     output_text: A string containing the output of an OCS CLI command.
 
     Returns:
-    A tuple containing the demand id and a boolean indicating whether the demand was
+    A tuple containing the demand ID and a boolean indicating whether the demand was
     submitted successfully.
     """
     json_output = json.loads(output_text)
@@ -52,10 +52,10 @@ def extract_demand_id_from_output(output_text: str) -> tuple[str | None, bool]:
 
 def count_jobs(job_type: str) -> int:
     """
-    Count the number of in-progress jobs in alignment or post-alignment.
+    Return the number of in-progress alignment or post-alignment jobs.
 
     Parameters:
-    job_type: A string representing the demand type to count align or post-align).
+    job_type: The demand type to count, either ``align`` or ``post-align``.
 
     Returns:
     The number of in-progress OCS demands of the given demand type.
@@ -82,7 +82,7 @@ def count_jobs(job_type: str) -> int:
 
 def can_submit_job(job_limit: int, dry_run: bool = False) -> bool:
     """
-    Check whether a new OCS job can be submitted without exceeding the configured limit.
+    Check whether a new OCS job fits within the configured limit.
 
     Parameters:
     job_limit: The maximum number of in-progress alignment and post-alignment jobs
@@ -90,7 +90,7 @@ def can_submit_job(job_limit: int, dry_run: bool = False) -> bool:
     dry_run: A boolean indicating whether to perform a dry run
 
     Returns:
-    A boolean indicating whether a new OCS job can be submitted without exceeding the job limit.
+    ``True`` when a new OCS job would stay within the configured limit.
     """
     if dry_run:
         return True
@@ -113,11 +113,11 @@ def get_latest_results(
     batch_name_from_vendor: str | None = None,
 ) -> pd.DataFrame:
     """
-    Fetches the latest OCS result entry for a list of fastq names or a batch name from vendor.
+    Return the latest OCS result for FASTQ names or a vendor batch.
 
     Parameters:
-    fastq_name: Check the ocs status for a given fastq name.
-    batch_name_from_vendor: Check the ocs status for a given batch name from vendor.
+    fastq_name_list: FASTQ names whose OCS status should be checked.
+    batch_name_from_vendor: Vendor batch whose OCS status should be checked.
 
     Returns:
     A dataframe with one row per fastq name and ingest_status, align_status, and
@@ -182,8 +182,9 @@ def query_metadata(
     batch_name_from_vendor: str | None = None,
 ) -> pd.DataFrame:
     """
-    Query the metadata of either a list of fastq names or a batch name from vendor through OCS.
-    Raises a ValueError if no fastq names or batch name from vendor is provided.
+    Return OCS metadata for FASTQ names or a vendor batch.
+
+    Raises ``ValueError`` unless exactly one lookup input is provided.
 
     Parameters:
     fastq_name_list: A list of fastq names to query metadata for.
@@ -253,7 +254,7 @@ def execute_ocs_submission_commands(
     ocs_job_commands_df: pd.DataFrame, job_limit: int, poll_interval_hours: float = 1
 ) -> pd.DataFrame:
     """
-    Submit alignment or post-alignment jobs for rows whose should-execute flag is true.
+    Submit alignment or post-alignment jobs for rows with a true should-execute flag.
 
     Submission waits when the job limit is reached.
 

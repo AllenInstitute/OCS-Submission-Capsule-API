@@ -27,7 +27,7 @@ FASTQ_RECORD_COLUMNS = [
 
 
 def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
-    """Load FASTQ records from the export file from ocs tracker
+    """Load FASTQ records from an OCS Tracker export.
 
     The OCS tracker export already has all the fields the rest of the pipeline expects,
     so this helper mostly renames the CSV's columns to match ``FASTQ_RECORD_COLUMNS``.
@@ -103,9 +103,9 @@ def load_fastq_records_df_from_fastq_names(fastq_names: list[str]) -> pd.DataFra
 
 def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Fetch the current status a list of fastq samples on OCS. If nothing is found:
-    Fall back to the status of the fastq samples on the running jobs database. If nothing is found:
-    Fall back to NOT COMPLETED.
+    Fetch current OCS statuses, then fall back to the running-jobs database.
+
+    Samples with no status in either source receive ``NOT COMPLETED``.
 
     Parameters:
     fastq_records_df: A dataframe containing ``fastq_name`` and/or
@@ -154,10 +154,10 @@ def log_fastq_status_summaries(
     fastq_records_df: pd.DataFrame,
 ) -> None:
     """
-    Logs one-line status summaries for ingest, alignment, and post-alignment,
+    Log one-line status summaries for ingest, alignment, and post-alignment.
 
     Parameters:
-    fastq_records_df: A dataframe of fastq samples and there stage status .
+    fastq_records_df: A dataframe of FASTQ samples and their stage statuses.
     """
 
     total_samples = len(fastq_records_df)
