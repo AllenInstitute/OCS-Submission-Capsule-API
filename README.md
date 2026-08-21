@@ -101,7 +101,8 @@ Run these commands from a Python 3.12+ environment with the `ocs` CLI on `PATH`.
 - Build a post-alignment command only after alignment is complete.
 - Skip a FASTQ sample when its library prep has no command.
 - Skip a stage when it is complete or already in progress.
-- Submit commands through the `ocs` CLI.
+- Submit commands through the `ocs` CLI while the active PTS process count is below the configured limit.
+- Poll PTS when the active alignment and post-alignment process count reaches the limit.
 - Run a LIMS audit for a vendor batch when `--audit true` is set.
 - Write a JSON manifest with planned commands and submission results.
 - Send submission summaries through AWS SES.
@@ -204,6 +205,7 @@ Key sections:
 | `probe_sets_by_organism` | Optional shared probe set per organism, or a mapping by library prep |
 | `chemistry_by_library_prep` | Maps library prep names to chemistry strings |
 | `workflows` | Alignment and post-alignment command templates for `MTX`, `RTX`, and `RFX` |
+| `job_settings` | Active PTS process limit and polling interval between capacity checks |
 | `status_mappings` | Defines which PTS status values count as complete for each stage |
 
 Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{input_name}`, `{input_name_flag}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`. `{input_name}` and `{input_name_flag}` are used together to render either `--load-names <load_name>` or, for RTX/RFX batch processing, `--fastq-names <fastq_name>`.

@@ -743,7 +743,12 @@
       ]
     }
   },
-  // List of literal OCS completed status labels.
+  // List of literal PTS completed status labels.
+  "job_settings": {
+    "limit": 100,
+    // When the limit is reached, wait this many hours before checking PTS capacity again.
+    "poll_interval_hours": 1
+  },
   "status_mappings": {
     "ingest_complete": [
       "INGEST_COMPLETE",

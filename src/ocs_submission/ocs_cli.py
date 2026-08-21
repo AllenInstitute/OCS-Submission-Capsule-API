@@ -9,6 +9,7 @@ from typing import cast
 
 import pandas as pd
 
+from .dats_pts import DatsPtsReader
 from .stages import Stage
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,9 @@ def extract_demand_id_from_output(output_text: str) -> tuple[str | None, bool]:
 
 def execute_ocs_submission_commands(
     ocs_job_commands_df: pd.DataFrame,
+    job_limit: int,
+    poll_interval_hours: float = 1,
+    dats_pts_reader: DatsPtsReader | None = None,
 ) -> pd.DataFrame:
     """
     Submit alignment or post-alignment jobs for rows with a true should-execute flag.
@@ -57,6 +61,9 @@ def execute_ocs_submission_commands(
     Parameters:
     ocs_job_commands_df: A dataframe containing should-execute flags for each stage
         and FASTQ name.
+    job_limit: The maximum number of active alignment and post-alignment PTS processes.
+    poll_interval_hours: The number of hours to wait before checking PTS capacity again.
+    dats_pts_reader: Optional reader for the PTS capacity check.
 
     Returns:
     The same dataframe with alignment and post-alignment demand id, success, error,
@@ -65,6 +72,7 @@ def execute_ocs_submission_commands(
     submit_indices = ocs_job_commands_df.index[
         ocs_job_commands_df["align_should_execute"] | ocs_job_commands_df["postalign_should_execute"]
     ]
+    reserved_submissions = 0
 
     for record_index in submit_indices:
         if ocs_job_commands_df.at[record_index, "align_should_execute"]:
@@ -82,6 +90,18 @@ def execute_ocs_submission_commands(
             logger.info(f"Dry run {col} for {fastq_name}: {command}")
             continue
 
+        if dats_pts_reader is None:
+            dats_pts_reader = DatsPtsReader()
+        while True:
+            active_jobs = dats_pts_reader.count_active_submission_jobs()
+            if active_jobs + reserved_submissions < job_limit:
+                break
+            logger.info(
+                f"PTS job limit reached: {active_jobs} active jobs and {reserved_submissions} pending submissions "
+                f"(limit: {job_limit}). Waiting {poll_interval_hours} hour(s) before checking again."
+            )
+            time.sleep(poll_interval_hours * 3600)
+
         ocs_job_commands_df.at[record_index, f"{col}_executed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         logger.info(f"Submitting {col} for {fastq_name}: {command}")
@@ -93,6 +113,7 @@ def execute_ocs_submission_commands(
             ocs_job_commands_df.at[record_index, f"{col}_submission_success"] = submission_success
 
             if submission_success and demand_id:
+                reserved_submissions += 1
                 logger.info(f"Job submitted successfully - Demand ID: {demand_id}")
             else:
                 ocs_job_commands_df.at[record_index, f"{col}_error_message"] = "Job submission failed"

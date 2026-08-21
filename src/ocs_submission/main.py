@@ -185,6 +185,8 @@ def main() -> None:
 
     ocs_job_commands_df = execute_ocs_submission_commands(
         ocs_job_commands_df=ocs_job_commands_df,
+        job_limit=config["job_settings"]["limit"],
+        poll_interval_hours=config["job_settings"].get("poll_interval_hours", 1),
     )
 
     ocs_job_commands_df.to_json(DATA_MANIFEST_PATH, orient="records", indent=2)

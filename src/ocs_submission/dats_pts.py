@@ -18,6 +18,7 @@ PROCESS_TYPES = {
     Stage.POST_ALIGNMENT: "prod-ocs-post-align",
 }
 ACTIVE_STATES = {"PENDING", "QUEUED", "RUNNING", "IN_PROGRESS"}
+SUBMISSION_STAGES = (Stage.ALIGNMENT, Stage.POST_ALIGNMENT)
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,15 @@ class DatsPtsReader:
 
     def get_stage_result(self, fastq_name: str, stage: Stage) -> StageResult:
         return self.get_stage_results(fastq_name)[stage]
+
+    def count_active_submission_jobs(self) -> int:
+        """Return the number of active alignment and post-alignment PTS processes."""
+        active_job_count = 0
+        for stage in SUBMISSION_STAGES:
+            process_type = self._process_type(PROCESS_TYPES[stage])
+            for state in ACTIVE_STATES:
+                active_job_count += self.pts.get_processes_by_type(process_type, state=state, first=1).total_count
+        return active_job_count
 
     def get_stage_results(self, fastq_name: str) -> dict[Stage, StageResult]:
         ingest_processes = self._processes_for_fastq(fastq_name, Stage.INGEST)

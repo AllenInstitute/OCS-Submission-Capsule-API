@@ -56,3 +56,17 @@ def test__DatsPtsReader__stage_results_follow_exact_fastq_asset_lineage():
     assert results[Stage.INGEST].location == "s3://ingest"
     assert results[Stage.ALIGNMENT].status == "NOT COMPLETED"
     assert results[Stage.POST_ALIGNMENT].status == "NOT COMPLETED"
+
+
+def test__DatsPtsReader__counts_active_submission_processes_from_pts():
+    class FakePts:
+        def get_process_types_by_name(self, name, version):
+            return SimpleNamespace(nodes=[SimpleNamespace(id=f"{name}-type")])
+
+        def get_processes_by_type(self, process_type, state, first):
+            return SimpleNamespace(total_count=1 if state in {"RUNNING", "IN_PROGRESS"} else 0)
+
+    reader = DatsPtsReader.__new__(DatsPtsReader)
+    reader.pts = FakePts()
+
+    assert reader.count_active_submission_jobs() == 4
