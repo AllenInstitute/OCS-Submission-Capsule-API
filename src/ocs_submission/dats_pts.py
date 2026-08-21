@@ -71,7 +71,7 @@ class DatsPtsReader:
                 results[stage] = StageResult(status="NOT COMPLETED", location=None)
                 continue
             status = self._status(process)
-            location = self._location(process, fastq_name)
+            location = self._location(process, fastq_name, stage)
             if status == "COMPLETED" and location is None:
                 raise ValueError(f"Completed PTS process has no DATS location for {fastq_name!r} ({stage.value})")
             results[stage] = StageResult(status=status, location=location)
@@ -126,7 +126,7 @@ class DatsPtsReader:
             return "IN_PROGRESS"
         return state
 
-    def _location(self, process: Any, fastq_name: str) -> str | None:
+    def _location(self, process: Any, fastq_name: str, stage: Stage) -> str | None:
         asset_ids = [
             output.external_id
             for output in self.pts.get_process_outputs(process.id)
@@ -138,7 +138,7 @@ class DatsPtsReader:
         matching_instances = [
             instance.download_url
             for asset in assets
-            if f"fastq_name: {fastq_name}" in (asset.tags or [])
+            if stage is not Stage.INGEST or f"fastq_name: {fastq_name}" in (asset.tags or [])
             for instance in (asset.instances or [])
             if instance.download_url
         ]
