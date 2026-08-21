@@ -108,3 +108,15 @@ def log_fastq_status_summaries(
         ] or [f"Completed 0/{total_samples}"]
 
         logger.info(f"  {stage.ocs_stage_name.title()}: {' '.join(summary_part_list)}")
+
+
+def log_fastq_status_details(fastq_records_df: pd.DataFrame) -> None:
+    """Log ingest, alignment, and post-alignment status for each FASTQ sample."""
+    for _, fastq_record in fastq_records_df.iterrows():
+        logger.info("Checking Status for %s", fastq_record["fastq_name"])
+        for stage in Stage:
+            logger.info(
+                "  - %s Status: %s",
+                stage.ocs_stage_name.title(),
+                fastq_record[stage.fastq_status_column],
+            )

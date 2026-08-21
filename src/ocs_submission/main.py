@@ -17,6 +17,7 @@ from .fastq_info_fetcher import (
     load_fastq_records_df_from_batch,
     load_fastq_records_df_from_exporter,
     load_fastq_records_df_from_fastq_names,
+    log_fastq_status_details,
     log_fastq_status_summaries,
 )
 from .ocs_cli import execute_ocs_submission_commands
@@ -171,6 +172,7 @@ def main() -> None:
         )
         return
 
+    log_fastq_status_details(fastq_records_df=fastq_records_df)
     log_fastq_status_summaries(fastq_records_df=fastq_records_df)
 
     ocs_job_commands_df = build_ocs_job_submission_command(
