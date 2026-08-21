@@ -5,11 +5,11 @@
 
 ## Overview
 
-OCS Submission Capsule reads FASTQ metadata, checks OCS stage status, builds commands, and submits jobs through the `ocs` CLI.
+OCS Submission Capsule reads FASTQ metadata from LIMS2, process status and lineage from PTS, and output locations from DATS. It builds alignment and post-alignment commands and submits them through the `ocs` CLI.
 
 It supports daily runs and backfills. Each run writes a manifest with one row per FASTQ sample. The manifest records command values, submission status, demand IDs, errors, and timestamps.
 
-When OCS reaches the job limit, the capsule waits and checks the limit again before submitting the next command.
+The sources have separate responsibilities: LIMS2 provides sample and library metadata, PTS provides process state and lineage, and DATS provides digital assets and storage locations. The capsule does not maintain a local job-status database. The `ocs` CLI is used for submission and demand-ID extraction only.
 
 The audit queries LIMS for a vendor batch, writes CSV reports for missing fields, and sends a plain-text email. Use the CellFlex LIMS query for an RFX audit.
 
@@ -47,10 +47,11 @@ Run these commands from a Python 3.12+ environment with the `ocs` CLI on `PATH`.
     pip install -e .
     ```
 
-2. Set required environment variables:
+2. Set the LIMS2 and Allen services configuration:
 
     ```bash
-    export RUNNING_JOBS_DB_URL=postgresql://...
+    export DB_CONNECTION_STRING='postgresql+pg8000://atlasreader:<password>@limsdb2.corp.alleninstitute.org:5432/lims2'
+    export ALLEN_SERVICE_API_CONFIG=/path/to/allen-services-api-config.ini
     ```
 
 3. Run a dry run first to verify planned commands:
@@ -93,33 +94,32 @@ Run these commands from a Python 3.12+ environment with the `ocs` CLI on `PATH`.
 
 ## Commands and stages
 
-- Check ingest, alignment, and post-alignment status for each FASTQ sample on OCS.
-- Load FASTQ metadata from an OCS Tracker export CSV, a vendor batch name, or FASTQ names.
+- Check ingest, alignment, and post-alignment status from PTS process lineage and DATS assets.
+- Load FASTQ names from an OCS Tracker export CSV, a vendor batch name, or direct FASTQ-name arguments.
+- Load sample and library metadata from LIMS2.
 - Create an alignment command only after FASTQ sample ingest is complete.
 - Build a post-alignment command only after alignment is complete.
 - Skip a FASTQ sample when its library prep has no command.
 - Skip a stage when it is complete or already in progress.
-- Submit commands through the `ocs` CLI within the configured job limit.
-- Save submitted jobs in PostgreSQL so later runs can check their status.
+- Submit commands through the `ocs` CLI.
 - Run a LIMS audit for a vendor batch when `--audit true` is set.
 - Write a JSON manifest with planned commands and submission results.
 - Send submission summaries through AWS SES.
 
 ## Workflow
 
-For each FASTQ sample, the capsule loads metadata, checks stage status, builds the next command, submits the command or prints it during a dry run, and writes the result to the manifest. When `--audit true` is set, it checks the batch metadata in LIMS and writes missing-data reports.
+For each FASTQ sample, the capsule loads metadata from LIMS2, resolves stage status and output locations through PTS and DATS, builds the next command, submits it or prints it during a dry run, and writes the result to the manifest. When `--audit true` is set, it checks batch metadata in LIMS2 and writes missing-data reports.
 ```
 Input (exporter CSV / batch name / FASTQ names)
         │
         ▼
 ┌─────────────────────────┐
-│  Load FASTQ Metadata    │  query_metadata → fastq_records_df
+│  Load FASTQ Metadata    │  LIMS2 → metadata; PTS/DATS → status and locations
 └────────────┬────────────┘
              │
              ▼
 ┌─────────────────────────┐
-│  Check Stage Status     │  OCS list results → join on fastq_name
-│                         │  DB fallback for align / postalign
+│  Check Stage Status     │  PTS process lineage + DATS assets
 └────────────┬────────────┘
              │
              ▼
@@ -131,7 +131,7 @@ Input (exporter CSV / batch name / FASTQ names)
              ▼
 ┌─────────────────────────┐
 │  Submit to OCS          │  ocs CLI → demand_id
-│  (or dry run)           │  tracker DB write
+│  (or dry run)           │  submission only
 └────────────┬────────────┘
              │
              ▼
@@ -184,8 +184,8 @@ ocs-submission \
 | `--force-submission` | No | Force `alignment` or `post-alignment` regardless of current status |
 | `--email`, `-e` | No | Email for OCS job notifications and run summary emails |
 | `--dry-run` | No | `true` or `false` (default `false`) — log commands without executing |
-| `--audit` | No | `true` or `false` (default `false`) — run LIMS audit for a batch name from vendor |
-| `--batch-processing` | No | `true` or `false` (default `false`) — use FASTQ names for RTX/RFX alignment and post-alignment commands |
+| `--audit` | No | `true` or `false` (default `false`), run a LIMS2 audit for vendor batches |
+| `--batch-processing` | No | `true` or `false` (default `false`), use FASTQ names for RTX/RFX alignment and post-alignment commands |
 | `--config` | No | Path to JSONC config; defaults to included `config.jsonc` |
 
 ## Configuration
@@ -204,12 +204,11 @@ Key sections:
 | `probe_sets_by_organism` | Optional shared probe set per organism, or a mapping by library prep |
 | `chemistry_by_library_prep` | Maps library prep names to chemistry strings |
 | `workflows` | Alignment and post-alignment command templates for `MTX`, `RTX`, and `RFX` |
-| `job_settings` | Submission limits and spacing between job submissions |
-| `status_mappings` | Defines which OCS statuses count as complete |
+| `status_mappings` | Defines which PTS status values count as complete for each stage |
 
 Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{input_name}`, `{input_name_flag}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`. `{input_name}` and `{input_name_flag}` are used together to render either `--load-names <load_name>` or, for RTX/RFX batch processing, `--fastq-names <fastq_name>`.
 
-When alignment or post-alignment is due but a FASTQ sample's library prep has no command, the capsule skips that stage and reports the FASTQ name in the log and summary email.
+When alignment or post-alignment is due but a FASTQ sample's library prep has no command, the capsule skips that stage and reports the FASTQ name in the log and summary email. The configuration may also contain an explicit placeholder for a library prep that has no post-alignment workflow.
 Missing chemistry and probe-set mappings continue to render as empty command values.
 
 A modality reference can be a single reference name, preserving the existing behavior:
@@ -242,9 +241,8 @@ use a `library_preps` mapping. Every submitted library prep must have an entry:
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `RUNNING_JOBS_DB_URL` | `running_jobs_db` | PostgreSQL connection URL for the tracker DB |
-| `DATABASE_USERNAME` | `audit` | LIMS database user |
-| `DATABASE_PASSWORD` | `audit` | LIMS database password |
+| `DB_CONNECTION_STRING` | LIMS2 adapter and audit | PostgreSQL connection URI for LIMS2 |
+| `ALLEN_SERVICE_API_CONFIG` | PTS/DATS adapter | Configuration file for the Allen services clients |
 
 > Environment variables set during Code Ocean's post-install phase are not automatically available in later capsule runs or terminal sessions. Make sure they are set in the runtime environment.
 
@@ -258,11 +256,12 @@ src/ocs_submission/
 ├── config.jsonc             # Workflow templates and status mappings
 ├── environment.py           # Environment variable accessors
 ├── stages.py                # Stage enum (ingest / align / postalign)
-├── ocs_cli.py               # ocs CLI wrapper, job limits, command submission
+├── ocs_cli.py               # ocs CLI submission wrapper
 ├── ocs_command_builder.py   # Build alignment + post-alignment commands
-├── fastq_info_fetcher.py    # Load FASTQ records from exporter / batch / names
+├── fastq_info_fetcher.py    # Load FASTQ records from LIMS2, PTS, and DATS
+├── lims.py                  # Parameterized LIMS2 metadata reads
+├── dats_pts.py              # PTS process lineage and DATS asset reads
 ├── emails.py                # Summary + audit email via AWS SES
-├── running_jobs_db.py       # Tracker PostgreSQL helpers
 └── audit/
     ├── __init__.py
     ├── audit.py             # LIMS audit (exports run_audit)

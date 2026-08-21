@@ -49,8 +49,7 @@ def test__run_audit__uses_modality_query_and_rules(
     expected_report = pd.DataFrame({"result": ["Present"]})
     with (
         patch.object(audit.psycopg2, "connect", return_value=connection),
-        patch.object(audit, "lims_database_username", return_value="user"),
-        patch.object(audit, "lims_database_password", return_value="password"),
+        patch.object(audit, "lims_connection_kwargs", return_value={"user": "user", "password": "password"}),
         patch.object(audit.MTXAuditor, "generate_report", return_value=expected_report) as mtx_report,
         patch.object(audit.RTXAuditor, "generate_report", return_value=expected_report) as rtx_report,
     ):

@@ -86,8 +86,8 @@
       "MTX": "harbor-porpoise_ncbi_mphopho1-1_genome_star2.7.1a",
       "RTX": "harbor-porpoise_ncbi_mphopho1-1_genome_cr-v8-0-0"
     },
-    "marmoset": {
-      "all": "marmoset_ncbi_caljac240-pri_genome_arc-v2-0"
+    "common-marmoset": {
+      "all": "marmoset_ncbi_caljac240-pri_genome_arc-v2-2"
     },
     "naked-mole-rat": {
       "all": "naked-mole-rat_ncbi_hetgla-female-1-0_genome_star2.7.1a"
@@ -390,10 +390,10 @@
           "spacing": 180
         },
         {
-          "name": "10xV4_PX-Placeholder",
+          "name": "10xV4_PX",
           "match": {
             "library_preps": [
-              "10xV4_PX-Placeholder"
+              "10xV4_PX"
             ]
           },
           "command": [
@@ -549,7 +549,7 @@
               "10Xv3",
               "10Xv2",
               "10xV3.1_HT_CP",
-              "10xV4_PX-Placeholder",
+              "10xV4_PX-placeholders",
               "10xV4",
               "10xV4-TK",
               "10xV4_FX4",
@@ -742,12 +742,6 @@
         }
       ]
     }
-  },
-  "job_settings": {
-    "limit": 100,
-    // When the limit is reached, wait this many hours before re-checking capacity
-    // instead of skipping the job. Default 1.
-    "poll_interval_hours": 1
   },
   // List of literal OCS completed status labels.
   "status_mappings": {

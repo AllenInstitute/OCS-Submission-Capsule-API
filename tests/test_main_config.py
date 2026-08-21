@@ -282,11 +282,21 @@ def test_default_config_renders_command_for_each_library_prep(modality, stage, l
     assert all("{" not in argument and "}" not in argument for argument in command_args)
 
 
-@pytest.mark.parametrize("modality", ["RTX", "RFX"])
-def test_default_post_alignment_library_preps_match_alignment_library_preps(modality):
-    """When reading RTX or RFX commands, check that each library prep has alignment and post-alignment commands."""
+@pytest.mark.parametrize(
+    "modality, alignment_only_preps, post_alignment_placeholders",
+    [
+        pytest.param("RTX", {"10xV4_PX"}, {"10xV4_PX-placeholders"}, id="rtx"),
+        pytest.param("RFX", set(), set(), id="rfx"),
+    ],
+)
+def test_default_post_alignment_library_preps_match_real_alignment_preps(
+    modality, alignment_only_preps, post_alignment_placeholders
+):
+    """Check that each real library prep has matching alignment and post-alignment commands."""
     workflow = load_jsonc_config(CONFIG_PATH)["workflows"][modality]
     alignment_preps = _library_preps(workflow["alignment_command_configs"])
     post_alignment_preps = _library_preps(workflow["post_alignment_command_configs"])
 
-    assert post_alignment_preps == alignment_preps
+    assert alignment_only_preps <= alignment_preps
+    assert post_alignment_placeholders <= post_alignment_preps
+    assert post_alignment_preps - post_alignment_placeholders == alignment_preps - alignment_only_preps

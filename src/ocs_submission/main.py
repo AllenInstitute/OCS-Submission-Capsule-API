@@ -11,7 +11,7 @@ import os
 import re
 import sys
 
-from . import OUTPUT_DIR, running_jobs_db
+from . import OUTPUT_DIR
 from .emails import send_audit_email, send_command_summary_email
 from .fastq_info_fetcher import (
     load_fastq_records_df_from_batch,
@@ -152,9 +152,6 @@ def main() -> None:
     if dry_run:
         logger.info("Dry run mode enabled. Submission commands will not be executed.")
 
-    logger.info("Initializing database connection pool")
-    running_jobs_db.init_connection_pool()
-
     config = load_jsonc_config(args.config)
 
     if args.ocs_tracker_exporter:
@@ -188,8 +185,6 @@ def main() -> None:
 
     ocs_job_commands_df = execute_ocs_submission_commands(
         ocs_job_commands_df=ocs_job_commands_df,
-        job_limit=config["job_settings"]["limit"],
-        poll_interval_hours=config["job_settings"].get("poll_interval_hours", 1),
     )
 
     ocs_job_commands_df.to_json(DATA_MANIFEST_PATH, orient="records", indent=2)

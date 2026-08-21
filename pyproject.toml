@@ -14,6 +14,7 @@ dependencies = [
     "pandas>=2.0",
     "psycopg2-binary>=2.9",
     "boto3>=1.34",
+    "allen-services-api @ git+https://github.com/AllenInstitute/allen_services_api.git@main",
 ]
 
 [project.scripts]
@@ -38,6 +39,9 @@ dev = [
 # editable source and breaking imports, so it must NOT be reintroduced.
 [tool.hatch.build.targets.wheel]
 packages = ["src/ocs_submission"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.sdist]
 include = [

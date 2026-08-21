@@ -12,18 +12,6 @@ AWS_CREDENTIAL_ENV_KEYS = (
 )
 
 
-def running_jobs_db_url() -> str:
-    return os.environ["RUNNING_JOBS_DB_URL"]
-
-
-def lims_database_username() -> str:
-    return os.environ["DATABASE_USERNAME"]
-
-
-def lims_database_password() -> str:
-    return os.environ["DATABASE_PASSWORD"]
-
-
 def clear_aws_credential_env() -> None:
     for env_key in AWS_CREDENTIAL_ENV_KEYS:
         os.environ.pop(env_key, None)
