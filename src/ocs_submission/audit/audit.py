@@ -5,7 +5,7 @@ import sys
 import pandas as pd
 import psycopg2
 
-from ..environment import lims_database_password, lims_database_username
+from ..integrations.environment import lims_database_password, lims_database_username
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -174,6 +174,7 @@ def run_audit(batch_name_from_vendor: str) -> tuple[pd.DataFrame, pd.DataFrame, 
     sql_filename = (
         "cellflex_lims_metadata_pull.sql" if prefix == "RFX" else "rnaseq_and_multiome_lims_metadata_pull.sql"
     )
+    auditor: Auditor
     if prefix in ("RTX", "RFX", "10X"):
         auditor = RTXAuditor()
         modality = prefix

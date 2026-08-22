@@ -5,25 +5,26 @@ optionally submits jobs to OCS, and sends email summaries.
 """
 
 import argparse
-import json
 import logging
 import os
 import re
 import sys
 
-from . import OUTPUT_DIR, running_jobs_db
-from .emails import send_audit_email, send_command_summary_email
-from .fastq_info_fetcher import (
+from . import OUTPUT_DIR
+from .commands.builder import (
+    build_ocs_job_submission_command,
+    unconfigured_library_prep_fastq_names,
+)
+from .config.loader import CONFIG_PATH, load_jsonc_config
+from .inputs.fastq_records import (
     load_fastq_records_df_from_batch,
     load_fastq_records_df_from_exporter,
     load_fastq_records_df_from_fastq_names,
     log_fastq_status_summaries,
 )
-from .ocs_cli import execute_ocs_submission_commands
-from .ocs_command_builder import (
-    build_ocs_job_submission_command,
-    unconfigured_library_prep_fastq_names,
-)
+from .integrations import running_jobs_db
+from .integrations.email import send_audit_email, send_command_summary_email
+from .integrations.ocs_cli import execute_ocs_submission_commands
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,35 +34,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.jsonc")
 DATA_MANIFEST_PATH = os.path.join(OUTPUT_DIR, "ocs_job_commands_manifest.json")
-
-
-def load_jsonc_config(config_path: str) -> dict:
-    """
-    Load a JSONC config file into a dictionary.
-
-    Comments are stripped and pipe-delimited organism keys are expanded.
-
-    Parameters:
-    config_path: The path to the JSONC config file to load.
-
-    Returns:
-    A dictionary containing the parsed configuration with expanded ``references`` keys.
-    """
-    with open(config_path, "r") as file:
-        jsonc_text = file.read()
-
-    json_text = re.sub(r"/\*.*?\*/", "", jsonc_text, flags=re.DOTALL)
-    json_text = re.sub(r"^\s*//.*$", "", json_text, flags=re.MULTILINE)
-    config = json.loads(json_text)
-
-    config["references"] = {
-        organism.strip(): reference
-        for organisms, reference in config["references"].items()
-        for organism in organisms.split("|")
-    }
-    return config
 
 
 def parse_args() -> argparse.Namespace:

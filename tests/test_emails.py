@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ocs_submission import emails
-from ocs_submission.ocs_command_builder import COMMAND_RECORD_COLUMNS
+from ocs_submission.commands.builder import COMMAND_RECORD_COLUMNS
+from ocs_submission.integrations import email as emails
 
 EMAIL = "BICore@alleninstitute.org"
 

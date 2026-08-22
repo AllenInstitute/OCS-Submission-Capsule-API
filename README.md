@@ -13,7 +13,7 @@ When OCS reaches the job limit, the capsule waits and checks the limit again bef
 
 The audit queries LIMS for a vendor batch, writes CSV reports for missing fields, and sends a plain-text email. Use the CellFlex LIMS query for an RFX audit.
 
-Add alignment and post-alignment commands in `config.jsonc`. The code reads those command templates at runtime.
+Add alignment and post-alignment commands in `src/ocs_submission/config/config.jsonc`. The code reads those command templates at runtime.
 
 ## Table of Contents
 
@@ -193,7 +193,7 @@ ocs-submission \
 The capsule reads command templates and status mappings from:
 
 ```
-src/ocs_submission/config.jsonc
+src/ocs_submission/config/config.jsonc
 ```
 
 Key sections:
@@ -254,16 +254,13 @@ use a `library_preps` mapping. Every submitted library prep must have an entry:
 src/ocs_submission/
 ├── __init__.py
 ├── __main__.py              # python -m ocs_submission entry point
-├── main.py                  # CLI entry (exposed as ocs-submission)
-├── config.jsonc             # Workflow templates and status mappings
-├── environment.py           # Environment variable accessors
-├── stages.py                # Stage enum (ingest / align / postalign)
-├── ocs_cli.py               # ocs CLI wrapper, job limits, command submission
-├── ocs_command_builder.py   # Build alignment + post-alignment commands
-├── fastq_info_fetcher.py    # Load FASTQ records from exporter / batch / names
-├── emails.py                # Summary + audit email via AWS SES
-├── running_jobs_db.py       # Tracker PostgreSQL helpers
-└── audit/
+├── main.py                  # CLI entry and workflow coordinator
+├── config/                   # JSONC loading and workflow configuration
+├── core/                     # Shared pipeline types, including Stage
+├── commands/                 # OCS command construction
+├── inputs/                   # FASTQ input discovery and record preparation
+├── integrations/             # OCS CLI, tracker DB, email, and environment adapters
+└── audit/                    # LIMS audit rules and SQL templates
     ├── __init__.py
     ├── audit.py             # LIMS audit (exports run_audit)
     ├── rnaseq_and_multiome_lims_metadata_pull.sql

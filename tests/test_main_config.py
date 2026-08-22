@@ -6,9 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from ocs_submission.commands.builder import COMMAND_CONFIG_BY_STAGE, build_ocs_command_args, select_command_config
+from ocs_submission.core.stages import Stage
 from ocs_submission.main import CONFIG_PATH, load_jsonc_config
-from ocs_submission.ocs_command_builder import COMMAND_CONFIG_BY_STAGE, build_ocs_command_args, select_command_config
-from ocs_submission.stages import Stage
 
 EMAIL = "test@example.org"
 

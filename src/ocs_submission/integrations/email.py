@@ -12,11 +12,11 @@ from email.mime.text import MIMEText
 import boto3
 import pandas as pd
 
-from . import OUTPUT_DIR
-from .audit import run_audit
+from .. import OUTPUT_DIR
+from ..audit import run_audit
+from ..commands.builder import unconfigured_library_prep_fastq_names
+from ..core.stages import JOB_STAGES
 from .environment import clear_aws_credential_env
-from .ocs_command_builder import unconfigured_library_prep_fastq_names
-from .stages import Stage
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
     for fastq_record in ocs_job_commands_df.itertuples(index=False):
         if fastq_record.dry_run:
             continue
-        for stage in (Stage.ALIGNMENT, Stage.POST_ALIGNMENT):
+        for stage in JOB_STAGES:
             outcome = _stage_outcome(fastq_record, stage.ocs_stage_name)
             if outcome is None:
                 continue

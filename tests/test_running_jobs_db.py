@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from psycopg2 import OperationalError
 
-from ocs_submission import running_jobs_db
+from ocs_submission.integrations import running_jobs_db
 
 
 def test_get_connection_returns_pooled_connection_when_alive():

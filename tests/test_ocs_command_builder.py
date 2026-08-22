@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from ocs_submission.ocs_command_builder import (
+from ocs_submission.commands.builder import (
     COMMAND_RECORD_COLUMNS,
     build_alignment_job_command_record,
     build_ocs_command_args,
@@ -13,7 +13,7 @@ from ocs_submission.ocs_command_builder import (
     select_command_config,
     unconfigured_library_prep_fastq_names,
 )
-from ocs_submission.stages import Stage
+from ocs_submission.core.stages import Stage
 
 EMAIL = "BICore@alleninstitute.org"
 EXPECTED_ALIGNMENT_COMMAND_ARGS = [

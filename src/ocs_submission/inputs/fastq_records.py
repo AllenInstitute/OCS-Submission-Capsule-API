@@ -7,9 +7,9 @@ from collections import Counter
 
 import pandas as pd
 
-from . import running_jobs_db
-from .ocs_cli import get_latest_results, query_metadata
-from .stages import Stage
+from ..core.stages import JOB_STAGES, Stage
+from ..integrations import running_jobs_db
+from ..integrations.ocs_cli import get_latest_results, query_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     fastq_records_df = fastq_records_df[list(exporter_column_mapping)].rename(columns=exporter_column_mapping)
 
     for index, fastq_record in fastq_records_df.iterrows():
-        for stage in (Stage.ALIGNMENT, Stage.POST_ALIGNMENT):
+        for stage in JOB_STAGES:
             if pd.isna(fastq_record[stage.fastq_status_column]):
                 fastq_records_df.at[index, stage.fastq_status_column] = running_jobs_db.check_job_status(
                     fastq_name=fastq_record["fastq_name"],

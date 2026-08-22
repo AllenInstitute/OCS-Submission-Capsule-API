@@ -23,3 +23,6 @@ class Stage(Enum):
     @property
     def fastq_status_column(self) -> str:
         return f"{self.ocs_stage_name}_status"
+
+
+JOB_STAGES = (Stage.ALIGNMENT, Stage.POST_ALIGNMENT)

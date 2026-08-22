@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ocs_submission.stages import Stage
+from ocs_submission.core.stages import Stage
 
 
 def test_stage_vocabulary():

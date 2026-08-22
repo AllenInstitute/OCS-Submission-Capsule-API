@@ -2,9 +2,7 @@
 
 import pandas as pd
 
-from .stages import Stage
-
-JOB_STAGES = (Stage.ALIGNMENT, Stage.POST_ALIGNMENT)
+from ..core.stages import JOB_STAGES, Stage
 
 COMMAND_CONFIG_BY_STAGE = {
     Stage.ALIGNMENT: ("alignment_command_configs", "alignment"),

@@ -12,8 +12,8 @@ import subprocess
 from psycopg2 import OperationalError, pool
 from psycopg2.extras import RealDictCursor
 
+from ..core.stages import Stage
 from .environment import running_jobs_db_url
-from .stages import Stage
 
 _connection_pool: pool.ThreadedConnectionPool | None = None
 
@@ -168,7 +168,11 @@ def check_job_status(fastq_name: str, stage: Stage) -> str | None:
     Returns:
     The latest status, or ``None`` if the job is not tracked or OCS reports no status.
     """
-    job = get_job(fastq_name, stage.running_db_stage_name)
+    running_db_stage_name = stage.running_db_stage_name
+    if running_db_stage_name is None:
+        raise ValueError(f"Stage {stage.name} is not tracked in the running-jobs database")
+
+    job = get_job(fastq_name, running_db_stage_name)
 
     if not job:
         return None
@@ -195,7 +199,7 @@ def check_job_status(fastq_name: str, stage: Stage) -> str | None:
 
     status = status_data[0].get("status")
     if status:
-        update_job_status(fastq_name, stage.running_db_stage_name, status)
+        update_job_status(fastq_name, running_db_stage_name, status)
     return status
 
 

@@ -6,12 +6,12 @@ import logging
 import subprocess
 import time
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
+from ..core.stages import Stage
 from . import running_jobs_db
-from .stages import Stage
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +160,9 @@ def get_latest_results(
         asyncio.run(fill_results())
         return fastq_stage_status_df
     else:
+        if batch_name_from_vendor is None:
+            raise ValueError("get_latest_results requires fastq_name_list or batch_name_from_vendor")
+
         status_columns = [stage.fastq_status_column for stage in Stage]
         fastq_stage_status_df = pd.DataFrame(columns=status_columns)
         fastq_stage_status_df.index.name = "fastq_name"
@@ -231,6 +234,9 @@ def query_metadata(
                 )
             all_metadata_rows.extend(metadata_rows)
     else:
+        if batch_name_from_vendor is None:
+            raise ValueError("query_metadata requires fastq_name_list or batch_name_from_vendor")
+
         metadata_cmd = metadata_base_cmd + [
             "--batch-name-from-vendor",
             batch_name_from_vendor,
@@ -279,10 +285,10 @@ def execute_ocs_submission_commands(
             stage = Stage.POST_ALIGNMENT
 
         col = stage.ocs_stage_name
-        dry_run = ocs_job_commands_df.at[record_index, "dry_run"]
-        fastq_name = ocs_job_commands_df.at[record_index, "fastq_name"]
-        command = ocs_job_commands_df.at[record_index, f"{col}_command"]
-        command_args = ocs_job_commands_df.at[record_index, f"{col}_command_args"]
+        dry_run = cast(bool, ocs_job_commands_df.at[record_index, "dry_run"])
+        fastq_name = cast(str, ocs_job_commands_df.at[record_index, "fastq_name"])
+        command = cast(str, ocs_job_commands_df.at[record_index, f"{col}_command"])
+        command_args = cast(list[str], ocs_job_commands_df.at[record_index, f"{col}_command_args"])
 
         if dry_run:
             logger.info(f"Dry run {col} for {fastq_name}: {command}")
@@ -306,12 +312,19 @@ def execute_ocs_submission_commands(
             ocs_job_commands_df.at[record_index, f"{col}_submission_success"] = submission_success
 
             if submission_success and demand_id:
+                running_db_stage_name = stage.running_db_stage_name
+                if running_db_stage_name is None:
+                    raise ValueError(f"Stage {stage.name} is not tracked in the running-jobs database")
+
                 running_jobs_db.add_job(
                     fastq_name=fastq_name,
-                    running_db_stage_name=stage.running_db_stage_name,
+                    running_db_stage_name=running_db_stage_name,
                     command=command,
                     demand_id=demand_id,
-                    batch_name_from_vendor=ocs_job_commands_df.at[record_index, "batch_name_from_vendor"],
+                    batch_name_from_vendor=cast(
+                        str | None,
+                        ocs_job_commands_df.at[record_index, "batch_name_from_vendor"],
+                    ),
                 )
                 logger.info(f"Job submitted successfully - Demand ID: {demand_id}")
             else:
@@ -322,7 +335,7 @@ def execute_ocs_submission_commands(
             ocs_job_commands_df.at[record_index, f"{col}_error_message"] = f"Command execution failed: {error}"
             logger.error(f"Command execution failed: {error}")
 
-        spacing = ocs_job_commands_df.at[record_index, f"{col}_spacing"]
+        spacing = cast(float, ocs_job_commands_df.at[record_index, f"{col}_spacing"])
         if spacing and record_index != submit_indices[-1]:
             time.sleep(spacing)
 
