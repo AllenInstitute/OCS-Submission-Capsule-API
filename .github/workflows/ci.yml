@@ -7,6 +7,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     name: CI
@@ -42,10 +45,13 @@ jobs:
         run: uv run --frozen ruff check src tests
 
       - name: Run tests
-        run: uv run --frozen pytest
+        run: uv run --frozen pytest --cov=ocs_submission --cov-report=term-missing
 
-      # mypy is advisory for now: the remaining findings are pandas DataFrame.at[...] typing
-      # limitations, not runtime bugs. Tighten and make this blocking once those are addressed.
-      - name: Type check (mypy, advisory)
+      - name: Type check (mypy)
         run: uv run --frozen mypy src
-        continue-on-error: true
+
+      - name: Build package
+        run: uv build
+
+      - name: Check CLI entry point
+        run: uv run --frozen ocs-submission --help

@@ -280,8 +280,10 @@ Run checks:
 ```bash
 uv run ruff format --check src tests   # formatting
 uv run ruff check src tests            # lint
-uv run pytest                          # tests
-uv run mypy src                        # type check (advisory)
+uv run pytest --cov=ocs_submission --cov-report=term-missing  # tests and coverage
+uv run mypy src                        # type check
+uv build                               # package build
+uv run ocs-submission --help           # CLI entry-point smoke test
 ```
 
 Auto-fix formatting and safe lint issues:
@@ -298,46 +300,6 @@ uv lock
 ```
 
 The test suite covers command-building and config logic and does not require a live OCS connection, database, or SES access.
-
-### Releases
-
-Pushing a `vMAJOR.MINOR.PATCH` tag starts the **Release** workflow (`.github/workflows/release.yml`). The workflow runs the tests and publishes a GitHub release from `CHANGELOG.md`.
-
-To cut a release:
-
-1. Start from the latest `main` and create a release branch:
-   ```bash
-   git checkout main
-   git pull origin main
-   git checkout -b release/v0.2.0
-   ```
-2. On the release branch, bump `version` in `pyproject.toml`:
-   ```toml
-   version = "0.2.0"
-   ```
-3. In [CHANGELOG.md](CHANGELOG.md), move the release notes out of
-   `## [Unreleased]` and into a dated release section:
-   ```md
-   ## [0.2.0] - YYYY-MM-DD
-   ```
-4. Commit the release prep and open a PR into `main`:
-   ```bash
-   git add pyproject.toml CHANGELOG.md
-   git commit -m "chore(release): prepare v0.2.0"
-   git push -u origin release/v0.2.0
-   ```
-5. After the PR merges, pull the updated `main`, tag that merged commit, and
-   push the tag:
-   ```bash
-   git checkout main
-   git pull origin main
-   git tag -a v0.2.0 -m "v0.2.0"
-   git push origin v0.2.0
-   ```
-
-Before creating a release, check that the Git tag, package version in
-`pyproject.toml`, and version section in `CHANGELOG.md` match. The release check
-script is `scripts/release/check_version.py`.
 
 ## Authors
 
