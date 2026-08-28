@@ -11,7 +11,6 @@ from typing import Any, cast
 import pandas as pd
 
 from ..core.stages import Stage
-from . import running_jobs_db
 
 logger = logging.getLogger(__name__)
 
@@ -51,15 +50,7 @@ def extract_demand_id_from_output(output_text: str) -> tuple[str | None, bool]:
 
 
 def count_jobs(job_type: str) -> int:
-    """
-    Return the number of in-progress alignment or post-alignment jobs.
-
-    Parameters:
-    job_type: The demand type to count, either ``align`` or ``post-align``.
-
-    Returns:
-    The number of in-progress OCS demands of the given demand type.
-    """
+    """Return the number of in-progress OCS demands of the given type."""
     cmd = [
         "ocs",
         "core",
@@ -81,17 +72,7 @@ def count_jobs(job_type: str) -> int:
 
 
 def can_submit_job(job_limit: int, dry_run: bool = False) -> bool:
-    """
-    Check whether a new OCS job fits within the configured limit.
-
-    Parameters:
-    job_limit: The maximum number of in-progress alignment and post-alignment jobs
-        allowed before new submissions are blocked.
-    dry_run: A boolean indicating whether to perform a dry run
-
-    Returns:
-    ``True`` when a new OCS job would stay within the configured limit.
-    """
+    """Return whether a new OCS job fits within the configured limit."""
     if dry_run:
         return True
 
@@ -312,20 +293,6 @@ def execute_ocs_submission_commands(
             ocs_job_commands_df.at[record_index, f"{col}_submission_success"] = submission_success
 
             if submission_success and demand_id:
-                running_db_stage_name = stage.running_db_stage_name
-                if running_db_stage_name is None:
-                    raise ValueError(f"Stage {stage.name} is not tracked in the running-jobs database")
-
-                running_jobs_db.add_job(
-                    fastq_name=fastq_name,
-                    running_db_stage_name=running_db_stage_name,
-                    command=command,
-                    demand_id=demand_id,
-                    batch_name_from_vendor=cast(
-                        str | None,
-                        ocs_job_commands_df.at[record_index, "batch_name_from_vendor"],
-                    ),
-                )
                 logger.info(f"Job submitted successfully - Demand ID: {demand_id}")
             else:
                 ocs_job_commands_df.at[record_index, f"{col}_error_message"] = "Job submission failed"

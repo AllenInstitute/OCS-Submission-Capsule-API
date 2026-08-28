@@ -8,7 +8,6 @@ from collections import Counter
 import pandas as pd
 
 from ..core.stages import JOB_STAGES, Stage
-from ..integrations import running_jobs_db
 from ..integrations.ocs_cli import get_latest_results, query_metadata
 
 logger = logging.getLogger(__name__)
@@ -32,8 +31,7 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     The OCS tracker export already has all the fields the rest of the pipeline expects,
     so this helper mostly renames the CSV's columns to match ``FASTQ_RECORD_COLUMNS``.
     When the export is missing ``Batch Name From Vendor``, that value is looked up on
-    OCS. Empty alignment and post-alignment statuses are filled from the running jobs
-    database, which tracks jobs submitted by this submission script.
+    OCS. Empty alignment and post-alignment statuses are treated as incomplete.
     """
     fastq_records_df = pd.read_csv(exporter_path).dropna(how="all")
     fastq_records_df = fastq_records_df.replace(", ", "; ")
@@ -57,14 +55,9 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
         "Post Alignment": "postalign_status",
     }
     fastq_records_df = fastq_records_df[list(exporter_column_mapping)].rename(columns=exporter_column_mapping)
-
-    for index, fastq_record in fastq_records_df.iterrows():
-        for stage in JOB_STAGES:
-            if pd.isna(fastq_record[stage.fastq_status_column]):
-                fastq_records_df.at[index, stage.fastq_status_column] = running_jobs_db.check_job_status(
-                    fastq_name=fastq_record["fastq_name"],
-                    stage=stage,
-                )
+    for stage in JOB_STAGES:
+        status_column = stage.fastq_status_column
+        fastq_records_df[status_column] = fastq_records_df[status_column].fillna("NOT COMPLETED")
 
     return fastq_records_df
 
@@ -103,7 +96,7 @@ def load_fastq_records_df_from_fastq_names(fastq_names: list[str]) -> pd.DataFra
 
 def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Fetch current OCS statuses, then fall back to the running-jobs database.
+    Fetch current OCS statuses.
 
     Samples with no status in either source receive ``NOT COMPLETED``.
 
@@ -141,9 +134,6 @@ def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame
                     logger.info(f"  - {stage_label} Status: NOT COMPLETED")
             else:
                 if status == "NOT COMPLETED":
-                    db_status = running_jobs_db.check_job_status(fastq_name=fastq_name, stage=stage)
-                    if db_status:
-                        status = db_status
                     fastq_records_df.at[index, stage.fastq_status_column] = status
                 logger.info(f"  - {stage_label} Status: {status}")
 

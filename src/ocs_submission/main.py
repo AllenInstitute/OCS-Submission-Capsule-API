@@ -22,7 +22,6 @@ from .inputs.fastq_records import (
     load_fastq_records_df_from_fastq_names,
     log_fastq_status_summaries,
 )
-from .integrations import running_jobs_db
 from .integrations.email import send_audit_email, send_command_summary_email
 from .integrations.ocs_cli import execute_ocs_submission_commands
 
@@ -124,9 +123,6 @@ def main() -> None:
     dry_run = args.dry_run == "true"
     if dry_run:
         logger.info("Dry run mode enabled. Submission commands will not be executed.")
-
-    logger.info("Initializing database connection pool")
-    running_jobs_db.init_connection_pool()
 
     config = load_jsonc_config(args.config)
 

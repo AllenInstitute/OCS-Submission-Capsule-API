@@ -50,7 +50,8 @@ Run these commands from a Python 3.12+ environment with the `ocs` CLI on `PATH`.
 2. Set required environment variables:
 
     ```bash
-    export RUNNING_JOBS_DB_URL=postgresql://...
+    export DATABASE_USERNAME=...
+    export DATABASE_PASSWORD=...
     ```
 
 3. Run a dry run first to verify planned commands:
@@ -100,7 +101,6 @@ Run these commands from a Python 3.12+ environment with the `ocs` CLI on `PATH`.
 - Skip a FASTQ sample when its library prep has no command.
 - Skip a stage when it is complete or already in progress.
 - Submit commands through the `ocs` CLI within the configured job limit.
-- Save submitted jobs in PostgreSQL so later runs can check their status.
 - Run a LIMS audit for a vendor batch when `--audit true` is set.
 - Write a JSON manifest with planned commands and submission results.
 - Send submission summaries through AWS SES.
@@ -119,7 +119,6 @@ Input (exporter CSV / batch name / FASTQ names)
              ▼
 ┌─────────────────────────┐
 │  Check Stage Status     │  OCS list results → join on fastq_name
-│                         │  DB fallback for align / postalign
 └────────────┬────────────┘
              │
              ▼
@@ -131,7 +130,7 @@ Input (exporter CSV / batch name / FASTQ names)
              ▼
 ┌─────────────────────────┐
 │  Submit to OCS          │  ocs CLI → demand_id
-│  (or dry run)           │  tracker DB write
+│  (or dry run)           │  job-limit polling
 └────────────┬────────────┘
              │
              ▼
@@ -242,7 +241,6 @@ use a `library_preps` mapping. Every submitted library prep must have an entry:
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `RUNNING_JOBS_DB_URL` | `running_jobs_db` | PostgreSQL connection URL for the tracker DB |
 | `DATABASE_USERNAME` | `audit` | LIMS database user |
 | `DATABASE_PASSWORD` | `audit` | LIMS database password |
 
@@ -259,7 +257,7 @@ src/ocs_submission/
 ├── core/                     # Shared pipeline types, including Stage
 ├── commands/                 # OCS command construction
 ├── inputs/                   # FASTQ input discovery and record preparation
-├── integrations/             # OCS CLI, tracker DB, email, and environment adapters
+├── integrations/             # OCS CLI, email, and environment adapters
 └── audit/                    # LIMS audit rules and SQL templates
     ├── __init__.py
     ├── audit.py             # LIMS audit (exports run_audit)
