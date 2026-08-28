@@ -15,7 +15,7 @@ import pandas as pd
 from .. import OUTPUT_DIR
 from ..audit import run_audit
 from ..commands.builder import unconfigured_library_prep_fastq_names
-from ..core.stages import JOB_STAGES
+from ..workflow.stages import JOB_STAGES
 from .environment import clear_aws_credential_env
 
 logger = logging.getLogger(__name__)

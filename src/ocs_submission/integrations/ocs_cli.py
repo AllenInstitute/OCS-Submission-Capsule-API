@@ -10,7 +10,7 @@ from typing import Any, cast
 
 import pandas as pd
 
-from ..core.stages import Stage
+from ..workflow.stages import Stage
 
 logger = logging.getLogger(__name__)
 

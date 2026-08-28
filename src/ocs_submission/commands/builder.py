@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from ..core.stages import JOB_STAGES, Stage
+from ..workflow.stages import JOB_STAGES, Stage
 
 COMMAND_CONFIG_BY_STAGE = {
     Stage.ALIGNMENT: ("alignment_command_configs", "alignment"),

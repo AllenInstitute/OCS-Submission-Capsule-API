@@ -13,7 +13,7 @@ from ocs_submission.commands.builder import (
     select_command_config,
     unconfigured_library_prep_fastq_names,
 )
-from ocs_submission.core.stages import Stage
+from ocs_submission.workflow.stages import Stage
 
 EMAIL = "BICore@alleninstitute.org"
 EXPECTED_ALIGNMENT_COMMAND_ARGS = [

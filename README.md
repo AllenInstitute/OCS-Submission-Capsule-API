@@ -254,7 +254,7 @@ src/ocs_submission/
 ├── __main__.py              # python -m ocs_submission entry point
 ├── main.py                  # CLI entry and workflow coordinator
 ├── config/                   # JSONC loading and workflow configuration
-├── core/                     # Shared pipeline types, including Stage
+├── workflow/                 # Shared workflow types, including Stage
 ├── commands/                 # OCS command construction
 ├── inputs/                   # FASTQ input discovery and record preparation
 ├── integrations/             # OCS CLI, email, and environment adapters

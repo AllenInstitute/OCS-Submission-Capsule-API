@@ -7,8 +7,8 @@ from collections import Counter
 
 import pandas as pd
 
-from ..core.stages import JOB_STAGES, Stage
 from ..integrations.ocs_cli import get_latest_results, query_metadata
+from ..workflow.stages import JOB_STAGES, Stage
 
 logger = logging.getLogger(__name__)
 
