@@ -6,6 +6,7 @@ import logging
 from collections import Counter
 
 import pandas as pd
+from rapidfuzz import fuzz, process
 
 from ..integrations.ocs_cli import get_latest_results, query_metadata
 from ..workflow.stages import JOB_STAGES, Stage
@@ -24,6 +25,73 @@ FASTQ_RECORD_COLUMNS = [
     "postalign_status",
 ]
 
+EXPORTER_COLUMN_MAPPING = {
+    "Fastq Name": "fastq_name",
+    "Study Set": "study_set",
+    "Load Name": "load_name",
+    "Library Prep Method": "library_prep_method_name",
+    "Organism": "organism_common_name",
+    "Batch Name From Vendor": "batch_name_from_vendor",
+    "Ingest": "ingest_status",
+    "Alignment": "align_status",
+    "Post Alignment": "postalign_status",
+}
+
+
+def _normalize_exporter_column_name(column_name: str) -> str:
+    """Normalize capitalization and separators in an exporter column name."""
+    return " ".join(column_name.replace("_", " ").replace("-", " ").casefold().split())
+
+
+def _resolve_exporter_columns(column_names: list[str]) -> dict[str, str]:
+    """Map expected exporter columns to supplied names, allowing safe minor typos."""
+    resolved_columns: dict[str, str] = {}
+    used_column_names: set[str] = set()
+
+    for expected_column_name in EXPORTER_COLUMN_MAPPING:
+        available_column_names = [column_name for column_name in column_names if column_name not in used_column_names]
+        normalized_expected_name = _normalize_exporter_column_name(expected_column_name)
+        exact_matches = [
+            column_name
+            for column_name in available_column_names
+            if _normalize_exporter_column_name(column_name) == normalized_expected_name
+        ]
+
+        if len(exact_matches) == 1:
+            resolved_columns[expected_column_name] = exact_matches[0]
+            used_column_names.add(exact_matches[0])
+            continue
+        if len(exact_matches) > 1:
+            raise ValueError(f"Multiple CSV columns match {expected_column_name!r}: {exact_matches}")
+
+        matches = process.extract(
+            expected_column_name,
+            available_column_names,
+            scorer=fuzz.ratio,
+            processor=_normalize_exporter_column_name,
+            score_cutoff=85,
+            limit=2,
+        )
+        if not matches:
+            if expected_column_name == "Batch Name From Vendor":
+                continue
+            raise ValueError(
+                f"CSV is missing required column {expected_column_name!r}. "
+                f"Expected columns: {', '.join(EXPORTER_COLUMN_MAPPING)}"
+            )
+
+        best_match, best_score, _ = matches[0]
+        if len(matches) > 1 and best_score - matches[1][1] < 5:
+            raise ValueError(
+                f"CSV column for {expected_column_name!r} is ambiguous. "
+                f"Possible matches: {matches[0][0]!r}, {matches[1][0]!r}"
+            )
+
+        resolved_columns[expected_column_name] = best_match
+        used_column_names.add(best_match)
+
+    return resolved_columns
+
 
 def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     """Load FASTQ records from an OCS Tracker export.
@@ -36,25 +104,25 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     fastq_records_df = pd.read_csv(exporter_path).dropna(how="all")
     fastq_records_df = fastq_records_df.replace(", ", "; ")
 
-    if "Batch Name From Vendor" not in fastq_records_df.columns:
-        metadata_df = query_metadata(fastq_name_list=fastq_records_df["Fastq Name"].tolist())
+    resolved_exporter_columns = _resolve_exporter_columns(list(fastq_records_df.columns))
+    if "Batch Name From Vendor" not in resolved_exporter_columns:
+        fastq_name_column = resolved_exporter_columns["Fastq Name"]
+        metadata_df = query_metadata(fastq_name_list=fastq_records_df[fastq_name_column].tolist())
         batch_name_from_vendor_list = [
-            metadata_df.loc[fastq_name, "batch_name_from_vendor"] for fastq_name in fastq_records_df["Fastq Name"]
+            metadata_df.loc[fastq_name, "batch_name_from_vendor"] for fastq_name in fastq_records_df[fastq_name_column]
         ]
         fastq_records_df["Batch Name From Vendor"] = batch_name_from_vendor_list
+        resolved_exporter_columns["Batch Name From Vendor"] = "Batch Name From Vendor"
 
-    exporter_column_mapping = {
-        "Fastq Name": "fastq_name",
-        "Study Set": "study_set",
-        "Load Name": "load_name",
-        "Library Prep Method": "library_prep_method_name",
-        "Organism": "organism_common_name",
-        "Batch Name From Vendor": "batch_name_from_vendor",
-        "Ingest": "ingest_status",
-        "Alignment": "align_status",
-        "Post Alignment": "postalign_status",
-    }
-    fastq_records_df = fastq_records_df[list(exporter_column_mapping)].rename(columns=exporter_column_mapping)
+    fastq_records_df = fastq_records_df[
+        [resolved_exporter_columns[column_name] for column_name in EXPORTER_COLUMN_MAPPING]
+    ].rename(
+        columns={
+            resolved_exporter_columns[column_name]: output_column_name
+            for column_name, output_column_name in EXPORTER_COLUMN_MAPPING.items()
+            if column_name in resolved_exporter_columns
+        }
+    )
     for stage in JOB_STAGES:
         status_column = stage.fastq_status_column
         fastq_records_df[status_column] = fastq_records_df[status_column].fillna("NOT COMPLETED")

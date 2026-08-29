@@ -147,6 +147,10 @@ Exactly one of the following is required:
 
 ### OCS Tracker Export CSV
 
+The exporter loader matches the required headers without regard to capitalization and treats spaces, underscores,
+and hyphens as equivalent. It also accepts a close, unambiguous typo. Ambiguous or missing headers produce an error
+that identifies the expected field.
+
 ```bash
 ocs-submission \
   --ocs-tracker-exporter /path/to/ocs_tracker_export.csv \

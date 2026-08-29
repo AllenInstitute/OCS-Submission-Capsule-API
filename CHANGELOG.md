@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Changed
+
+- OCS Tracker export headers now tolerate capitalization, separator differences, and close unambiguous typos.
+
 ## [0.1.4] - 2026-08-22
 
 ### Changed
