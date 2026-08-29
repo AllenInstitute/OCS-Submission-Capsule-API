@@ -36,6 +36,7 @@ EXPORTER_COLUMN_MAPPING = {
     "Alignment": "align_status",
     "Post Alignment": "postalign_status",
 }
+EXPORTER_COLUMN_ALIASES = {"Organism": ("Organism Common Name",)}
 
 
 def _normalize_exporter_column_name(column_name: str) -> str:
@@ -50,11 +51,12 @@ def _resolve_exporter_columns(column_names: list[str]) -> dict[str, str]:
 
     for expected_column_name in EXPORTER_COLUMN_MAPPING:
         available_column_names = [column_name for column_name in column_names if column_name not in used_column_names]
-        normalized_expected_name = _normalize_exporter_column_name(expected_column_name)
+        accepted_column_names = (expected_column_name, *EXPORTER_COLUMN_ALIASES.get(expected_column_name, ()))
+        normalized_accepted_names = {_normalize_exporter_column_name(name) for name in accepted_column_names}
         exact_matches = [
             column_name
             for column_name in available_column_names
-            if _normalize_exporter_column_name(column_name) == normalized_expected_name
+            if _normalize_exporter_column_name(column_name) in normalized_accepted_names
         ]
 
         if len(exact_matches) == 1:

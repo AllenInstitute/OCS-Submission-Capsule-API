@@ -35,6 +35,27 @@ def test__load_fastq_records_df_from_exporter__accepts_case_and_separator_variat
     assert result.loc[0, "postalign_status"] == "NOT COMPLETED"
 
 
+def test__load_fastq_records_df_from_exporter__accepts_organism_common_name_header(tmp_path):
+    exporter_path = _write_exporter_csv(
+        tmp_path,
+        {
+            "Fastq Name": ["FASTQ_1"],
+            "Study Set": ["StudyA"],
+            "Load Name": ["LOAD_1"],
+            "Library Prep Method": ["10xRSeq_Mult"],
+            "Organism Common Name": ["mouse"],
+            "Batch Name From Vendor": ["MTX-22068"],
+            "Ingest": ["INGEST_COMPLETE"],
+            "Alignment": ["COMPLETED"],
+            "Post Alignment": ["NOT COMPLETED"],
+        },
+    )
+
+    result = load_fastq_records_df_from_exporter(exporter_path)
+
+    assert result.loc[0, "organism_common_name"] == "mouse"
+
+
 def test__load_fastq_records_df_from_exporter__accepts_minor_header_typos(tmp_path):
     exporter_path = _write_exporter_csv(
         tmp_path,
