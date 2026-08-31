@@ -164,6 +164,18 @@ def load_fastq_records_df_from_fastq_names(fastq_names: list[str]) -> pd.DataFra
     return fastq_record_df[FASTQ_RECORD_COLUMNS]
 
 
+def load_fastq_records_df_from_load_names(load_names: list[str]) -> pd.DataFrame:
+    """
+    Build a dataframe for every FASTQ associated with the provided load names.
+
+    The dataframe has the columns in ``FASTQ_RECORD_COLUMNS`` and includes FASTQ metadata
+    plus ingest, alignment, and post-alignment statuses.
+    """
+    load_metadata_df = query_metadata(load_name_list=load_names)
+    load_record_df = check_all_fastq_stage_status(fastq_records_df=load_metadata_df)
+    return load_record_df[FASTQ_RECORD_COLUMNS]
+
+
 def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame:
     """
     Fetch current OCS statuses.

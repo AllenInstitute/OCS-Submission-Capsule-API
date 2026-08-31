@@ -164,6 +164,7 @@ def get_latest_results(
 def query_metadata(
     fastq_name_list: list[str] | None = None,
     batch_name_from_vendor: str | None = None,
+    load_name_list: list[str] | None = None,
 ) -> pd.DataFrame:
     """
     Return OCS metadata for FASTQ names or a vendor batch.
@@ -172,16 +173,18 @@ def query_metadata(
 
     Parameters:
     fastq_name_list: A list of fastq names to query metadata for.
+    load_name_list: A list of load names to query metadata for.
     batch_name_from_vendor: A batch name from vendor to query metadata for.
 
     Returns:
     A dataframe with the index set to the fastq name and the columns set to the metadata fields.
     """
 
-    has_fastq_lookup = bool(fastq_name_list)
-    has_batch_lookup = bool(batch_name_from_vendor)
-    if has_fastq_lookup == has_batch_lookup:
-        raise ValueError("query_metadata requires exactly one of fastq_name_list or batch_name_from_vendor")
+    lookup_count = sum([bool(fastq_name_list), bool(load_name_list), bool(batch_name_from_vendor)])
+    if lookup_count != 1:
+        raise ValueError(
+            "query_metadata requires exactly one of fastq_name_list, load_name_list, or batch_name_from_vendor"
+        )
 
     metadata_base_cmd = [
         "ocs",
@@ -203,14 +206,23 @@ def query_metadata(
     ]
 
     all_metadata_rows: list[dict[str, Any]] = []
-    if fastq_name_list:
-        for fastq_name in fastq_name_list:
-            metadata_cmd = metadata_base_cmd + ["--fastq-name", fastq_name]
+    if fastq_name_list or load_name_list:
+        if fastq_name_list:
+            lookup_values = fastq_name_list
+            lookup_flag = "--fastq-name"
+            lookup_label = "fastq"
+        else:
+            assert load_name_list is not None
+            lookup_values = load_name_list
+            lookup_flag = "--load-name"
+            lookup_label = "load"
+        for lookup_value in lookup_values:
+            metadata_cmd = metadata_base_cmd + [lookup_flag, lookup_value]
             metadata_rows = json.loads(execute_ocs_cmd(cmd_list=metadata_cmd).stdout)
             if not metadata_rows:
                 raise ValueError(
-                    f"OCS returned no metadata for fastq {fastq_name!r}. "
-                    "There may be an issue with this FASTQ on OCS — verify metadata with "
+                    f"OCS returned no metadata for {lookup_label} {lookup_value!r}. "
+                    f"There may be an issue with this {lookup_label} on OCS — verify metadata with "
                     "`ocs fastqs list metadata` and perform a manual check."
                 )
             all_metadata_rows.extend(metadata_rows)

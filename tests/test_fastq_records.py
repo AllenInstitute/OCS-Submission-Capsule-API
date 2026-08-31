@@ -3,7 +3,10 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from ocs_submission.inputs.fastq_records import load_fastq_records_df_from_exporter
+from ocs_submission.inputs.fastq_records import (
+    load_fastq_records_df_from_exporter,
+    load_fastq_records_df_from_load_names,
+)
 
 
 def _write_exporter_csv(tmp_path: Path, columns: dict[str, list[str | None]]) -> str:
@@ -78,3 +81,34 @@ def test__load_fastq_records_df_from_exporter__accepts_minor_header_typos(tmp_pa
     query_metadata.assert_not_called()
     assert result.loc[0, "fastq_name"] == "FASTQ_1"
     assert result.loc[0, "organism_common_name"] == "mouse"
+
+
+def test__load_fastq_records_df_from_load_names__returns_fastq_records():
+    metadata_df = pd.DataFrame(
+        [
+            {
+                "fastq_name": "FASTQ_1",
+                "study_set": "StudyA",
+                "load_name": "LOAD_1",
+                "library_prep_method_name": "10xRSeq_Mult",
+                "organism_common_name": "mouse",
+                "batch_name_from_vendor": "MTX-22068",
+            }
+        ]
+    ).set_index("fastq_name", drop=False)
+    status_df = pd.DataFrame(
+        {
+            "ingest_status": ["COMPLETED"],
+            "align_status": ["COMPLETED"],
+            "postalign_status": ["NOT COMPLETED"],
+        },
+        index=pd.Index(["FASTQ_1"], name="fastq_name"),
+    )
+
+    with patch("ocs_submission.inputs.fastq_records.query_metadata", return_value=metadata_df) as query_metadata:
+        with patch("ocs_submission.inputs.fastq_records.get_latest_results", return_value=status_df):
+            result = load_fastq_records_df_from_load_names(["LOAD_1", "LOAD_2"])
+
+    query_metadata.assert_called_once_with(load_name_list=["LOAD_1", "LOAD_2"])
+    assert result.loc["FASTQ_1", "fastq_name"] == "FASTQ_1"
+    assert result.loc["FASTQ_1", "align_status"] == "COMPLETED"

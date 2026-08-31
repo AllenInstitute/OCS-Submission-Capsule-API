@@ -20,6 +20,7 @@ from .inputs.fastq_records import (
     load_fastq_records_df_from_batch,
     load_fastq_records_df_from_exporter,
     load_fastq_records_df_from_fastq_names,
+    load_fastq_records_df_from_load_names,
     log_fastq_status_summaries,
 )
 from .integrations.email import send_audit_email, send_command_summary_email
@@ -59,6 +60,11 @@ def parse_args() -> argparse.Namespace:
         "--fastq-names",
         nargs="+",
         help="One or more FASTQ names, separated by spaces.",
+    )
+    parser.add_argument(
+        "--load-names",
+        nargs="+",
+        help="One or more load names, separated by spaces.",
     )
     parser.add_argument(
         "--force-submission",
@@ -109,8 +115,8 @@ def main() -> None:
     """
     args = parse_args()
 
-    if args.batch_name_from_vendor and args.fastq_names:
-        raise ValueError("Cannot specify both --batch-name-from-vendor and --fastq-names.")
+    if args.batch_name_from_vendor and (args.fastq_names or args.load_names):
+        raise ValueError("Cannot specify --batch-name-from-vendor with --fastq-names or --load-names.")
 
     if args.fastq_names:
         args.fastq_names = [
@@ -118,6 +124,14 @@ def main() -> None:
             for raw_token in args.fastq_names
             for fastq_name in re.split(r"[,\s]+", raw_token.strip())
             if fastq_name
+        ]
+
+    if args.load_names:
+        args.load_names = [
+            load_name
+            for raw_token in args.load_names
+            for load_name in re.split(r"[,\s]+", raw_token.strip())
+            if load_name
         ]
 
     dry_run = args.dry_run == "true"
@@ -131,10 +145,14 @@ def main() -> None:
         fastq_records_df = load_fastq_records_df_from_exporter(args.ocs_tracker_exporter)
     elif args.batch_name_from_vendor:
         fastq_records_df = load_fastq_records_df_from_batch(args.batch_name_from_vendor)
+    elif args.load_names:
+        fastq_records_df = load_fastq_records_df_from_load_names(args.load_names)
     elif args.fastq_names:
         fastq_records_df = load_fastq_records_df_from_fastq_names(args.fastq_names)
     else:
-        raise ValueError("Provide one of --ocs-tracker-exporter, --batch-name-from-vendor, or --fastq-names.")
+        raise ValueError(
+            "Provide one of --ocs-tracker-exporter, --batch-name-from-vendor, --load-names, or --fastq-names."
+        )
 
     if fastq_records_df.empty:
         logger.info(
