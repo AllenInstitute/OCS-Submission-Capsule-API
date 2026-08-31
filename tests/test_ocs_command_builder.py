@@ -506,6 +506,7 @@ def test_alignment_skips_unconfigured_library_prep(config, make_fastq_record):
     "align_status, postalign_status, alignment_should_execute, force_submission, should_execute",
     [
         pytest.param("COMPLETED", "NOT COMPLETED", False, None, True, id="aligned-and-not-postaligned"),
+        pytest.param("COMPLETED", "COMPLETED [OLD]", False, None, True, id="old-postalignment-status"),
         pytest.param("NOT COMPLETED", "NOT COMPLETED", False, None, False, id="alignment-not-complete"),
         pytest.param("COMPLETED", "NOT COMPLETED", True, None, False, id="alignment-scheduled-this-pass"),
         pytest.param("COMPLETED", "COMPLETED", False, None, False, id="postalignment-complete"),
