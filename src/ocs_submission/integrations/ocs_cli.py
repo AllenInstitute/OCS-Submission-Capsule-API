@@ -282,21 +282,26 @@ def execute_ocs_submission_commands(
         fastq_name = cast(str, ocs_job_commands_df.at[record_index, "fastq_name"])
         command = cast(str, ocs_job_commands_df.at[record_index, f"{col}_command"])
         command_args = cast(list[str], ocs_job_commands_df.at[record_index, f"{col}_command_args"])
+        submission_name = (
+            cast(str, ocs_job_commands_df.at[record_index, "load_name"])
+            if "--load-names" in command_args
+            else fastq_name
+        )
 
         if dry_run:
-            logger.info(f"Dry run {col} for {fastq_name}: {command}")
+            logger.info(f"Dry run {col} for {submission_name}: {command}")
             continue
 
         while not can_submit_job(job_limit=job_limit, dry_run=dry_run):
             logger.info(
                 f"Job limit reached; waiting {poll_interval_hours} hour(s) "
-                f"before re-checking capacity for {fastq_name} ({col})."
+                f"before re-checking capacity for {submission_name} ({col})."
             )
             time.sleep(poll_interval_hours * 3600)
 
         ocs_job_commands_df.at[record_index, f"{col}_executed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        logger.info(f"Submitting {col} for {fastq_name}: {command}")
+        logger.info(f"Submitting {col} for {submission_name}: {command}")
 
         try:
             result = execute_ocs_cmd(command_args)

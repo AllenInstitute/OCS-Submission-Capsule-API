@@ -15,6 +15,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Fixed
 
 - Load-name inputs now check every associated FASTQ and submit one command per eligible load.
+- Load-based submission logs now identify the submitted load name instead of a representative FASTQ name.
 
 ## [0.1.4] - 2026-08-22
 
