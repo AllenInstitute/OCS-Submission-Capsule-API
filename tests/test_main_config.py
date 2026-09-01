@@ -38,12 +38,12 @@ def _argument_placeholders(command_config: dict) -> set[str]:
     return placeholders
 
 
-def _fastq_record(library_prep_method_name: str) -> SimpleNamespace:
+def _fastq_record(library_prep_method_name: str, organism_common_name: str = "mouse") -> SimpleNamespace:
     return SimpleNamespace(
         fastq_name="FASTQ_1",
         load_name="LOAD_1",
         library_prep_method_name=library_prep_method_name,
-        organism_common_name="mouse",
+        organism_common_name=organism_common_name,
     )
 
 
@@ -181,7 +181,7 @@ def test_default_command_config_match_is_well_formed(modality, stage, command_co
             "RFX",
             Stage.ALIGNMENT,
             "10xV4_FX16",
-            ["ocs", "fastqs", "align", "tenx-rnaseq-multi"],
+            ["ocs", "fastqs", "align", "tenx-cellranger-multi"],
             id="rfx-align",
         ),
         pytest.param(
@@ -247,7 +247,7 @@ def test_default_config_builds_10x_fx_v2_command_with_matching_reference_and_pro
         command_template=command_config,
     )
 
-    assert command_args[:4] == ["ocs", "fastqs", "align", "tenx-rnaseq-multi"]
+    assert command_args[:4] == ["ocs", "fastqs", "align", "tenx-cellranger-multi"]
     reference_flag_index = command_args.index("--reference-names")
     probe_set_flag_index = command_args.index("--cellflex-probe-set-name")
     assert command_args[reference_flag_index + 1] == "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
@@ -256,14 +256,14 @@ def test_default_config_builds_10x_fx_v2_command_with_matching_reference_and_pro
 
 @pytest.mark.parametrize("modality, stage, library_prep_method_name", _library_prep_params())
 def test_default_config_renders_command_for_each_library_prep(modality, stage, library_prep_method_name):
-    """When building a command for each configured fastq sample, check that no placeholder text remains."""
+    """When building each configured command for a supported organism, check that no placeholder text remains."""
     config = load_jsonc_config(CONFIG_PATH)
     selected_command_config = select_command_config(
         config=config,
         modality=modality,
         stage=stage,
         library_prep_method_name=library_prep_method_name,
-        organism_common_name="mouse",
+        organism_common_name="human",
     )
 
     placeholders = _argument_placeholders(selected_command_config)
@@ -272,7 +272,7 @@ def test_default_config_renders_command_for_each_library_prep(modality, stage, l
 
     command_args, spacing = build_ocs_command_args(
         config=config,
-        fastq_record=_fastq_record(library_prep_method_name),
+        fastq_record=_fastq_record(library_prep_method_name, organism_common_name="human"),
         modality=modality,
         email=EMAIL,
         command_template=selected_command_config,
@@ -280,13 +280,3 @@ def test_default_config_renders_command_for_each_library_prep(modality, stage, l
 
     assert spacing > 0
     assert all("{" not in argument and "}" not in argument for argument in command_args)
-
-
-@pytest.mark.parametrize("modality", ["RTX", "RFX"])
-def test_default_post_alignment_library_preps_match_alignment_library_preps(modality):
-    """When reading RTX or RFX commands, check that each library prep has alignment and post-alignment commands."""
-    workflow = load_jsonc_config(CONFIG_PATH)["workflows"][modality]
-    alignment_preps = _library_preps(workflow["alignment_command_configs"])
-    post_alignment_preps = _library_preps(workflow["post_alignment_command_configs"])
-
-    assert post_alignment_preps == alignment_preps

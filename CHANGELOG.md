@@ -10,6 +10,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Changed
 
 - OCS Tracker export headers now tolerate capitalization, separator differences, and close unambiguous typos.
+- Updated organism aliases and RTX/RFX workflow configuration for the current Cell Ranger assets and library preps.
 
 ### Fixed
 
