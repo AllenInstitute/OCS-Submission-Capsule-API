@@ -753,6 +753,103 @@ def test_build_ocs_job_submission_command_handles_mixed_rows(config, make_fastq_
     assert_frame_equal(result, expected)
 
 
+def test_build_ocs_job_submission_command_builds_one_forced_alignment_per_load(config, make_fastq_record):
+    """When alignment is forced for load inputs, check that each completed load gets one command."""
+    records = [
+        make_fastq_record(fastq_name="load-1-fastq-1", load_name="LOAD_1", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="load-1-fastq-2", load_name="LOAD_1", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="load-2-fastq-1", load_name="LOAD_2", align_status="COMPLETED"),
+    ]
+
+    result = build_ocs_job_submission_command(
+        fastq_records_df=pd.DataFrame([vars(record) for record in records]),
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission="alignment",
+        dry_run=True,
+        group_by_load_name=True,
+    )
+
+    alignment_commands = result.loc[result["align_should_execute"], "align_command_args"]
+
+    assert len(result) == 3
+    assert len(alignment_commands) == 2
+    assert [command[command.index("--load-names") + 1] for command in alignment_commands] == ["LOAD_1", "LOAD_2"]
+
+
+def test_build_ocs_job_submission_command_requires_every_fastq_in_load_to_complete_ingest(
+    config,
+    make_fastq_record,
+):
+    """When one FASTQ has not completed ingest, check that forced alignment does not submit its load."""
+    records = [
+        make_fastq_record(fastq_name="completed", ingest_status="COMPLETED", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="incomplete", ingest_status="NOT COMPLETED", align_status="COMPLETED"),
+    ]
+
+    result = build_ocs_job_submission_command(
+        fastq_records_df=pd.DataFrame([vars(record) for record in records]),
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission="alignment",
+        dry_run=True,
+        group_by_load_name=True,
+    )
+
+    assert not result["align_should_execute"].any()
+
+
+def test_build_ocs_job_submission_command_requires_every_fastq_in_load_to_complete_alignment(
+    config,
+    make_fastq_record,
+):
+    """When one FASTQ has not completed alignment, check that post-alignment does not submit its load."""
+    records = [
+        make_fastq_record(
+            fastq_name="blocked-completed",
+            load_name="BLOCKED_LOAD",
+            align_status="COMPLETED",
+            postalign_status="NOT COMPLETED",
+        ),
+        make_fastq_record(
+            fastq_name="blocked-incomplete",
+            load_name="BLOCKED_LOAD",
+            align_status="NOT COMPLETED",
+            postalign_status="NOT COMPLETED",
+        ),
+        make_fastq_record(
+            fastq_name="eligible-1",
+            load_name="ELIGIBLE_LOAD",
+            align_status="COMPLETED",
+            postalign_status="NOT COMPLETED",
+        ),
+        make_fastq_record(
+            fastq_name="eligible-2",
+            load_name="ELIGIBLE_LOAD",
+            align_status="COMPLETED",
+            postalign_status="NOT COMPLETED",
+        ),
+    ]
+
+    result = build_ocs_job_submission_command(
+        fastq_records_df=pd.DataFrame([vars(record) for record in records]),
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission="post-alignment",
+        dry_run=True,
+        group_by_load_name=True,
+    )
+
+    postalignment_commands = result.loc[result["postalign_should_execute"], "postalign_command_args"]
+
+    assert len(postalignment_commands) == 1
+    command = postalignment_commands.iloc[0]
+    assert command[command.index("--load-names") + 1] == "ELIGIBLE_LOAD"
+
+
 def test_build_ocs_job_submission_command_flags_unconfigured_library_prep(config, make_fastq_record):
     """When a fastq sample library prep is not configured, check that it is skipped and returned in the skipped list."""
     records = [

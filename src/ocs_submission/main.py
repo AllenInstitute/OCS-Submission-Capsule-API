@@ -171,6 +171,7 @@ def main() -> None:
         force_submission=args.force_submission,
         dry_run=dry_run,
         batch_processing=args.batch_processing == "true",
+        group_by_load_name=bool(args.load_names),
     )
 
     ocs_job_commands_df = execute_ocs_submission_commands(

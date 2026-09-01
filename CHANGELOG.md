@@ -11,6 +11,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - OCS Tracker export headers now tolerate capitalization, separator differences, and close unambiguous typos.
 
+### Fixed
+
+- Load-name inputs now check every associated FASTQ and submit one command per eligible load.
+
 ## [0.1.4] - 2026-08-22
 
 ### Changed
