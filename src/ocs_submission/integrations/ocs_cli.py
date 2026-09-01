@@ -126,7 +126,7 @@ def get_latest_results(
         fastq_stage_status_df.index.name = "fastq_name"
 
         async def fetch(stage: Stage, fastq_name: str) -> tuple[str, str, str]:
-            cmd = list_results_cmd(stage.ocs_list_results_arg) + ["--fastq-names", fastq_name]
+            cmd = list_results_cmd(stage.ocs_list_results_arg) + ["--fastq-name", fastq_name]
             stdout = (await asyncio.to_thread(execute_ocs_cmd, cmd)).stdout
             entries = json.loads(stdout)
             return fastq_name, stage.fastq_status_column, status_from_entry(entries[0])
@@ -209,7 +209,7 @@ def query_metadata(
     if fastq_name_list or load_name_list:
         if fastq_name_list:
             lookup_values = fastq_name_list
-            lookup_flag = "--fastq-names"
+            lookup_flag = "--fastq-name"
             lookup_label = "fastq"
         else:
             assert load_name_list is not None

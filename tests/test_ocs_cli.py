@@ -31,3 +31,30 @@ def test__query_metadata__looks_up_each_load_name():
     command = execute.call_args.kwargs["cmd_list"]
     assert command[command.index("--load-name") + 1] == "3492_A01"
     assert result.loc["NW-MX32013-2", "load_name"] == "3492_A01"
+
+
+def test__query_metadata__looks_up_each_fastq_name_with_singular_flag():
+    metadata_rows = [
+        {
+            "fastq_name": "NW-MX32013-2",
+            "studies": ["MG_MethDev"],
+            "load_name": "3492_A01",
+            "organism_common_name": "mouse",
+            "library_prep_method_name": "10xMultX_GEX",
+            "batch_name_from_vendor": "MTX-32013",
+        }
+    ]
+    completed_process = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=json.dumps(metadata_rows),
+        stderr="",
+    )
+
+    with patch("ocs_submission.integrations.ocs_cli.execute_ocs_cmd", return_value=completed_process) as execute:
+        result = query_metadata(fastq_name_list=["NW-MX32013-2"])
+
+    command = execute.call_args.kwargs["cmd_list"]
+    assert command[command.index("--fastq-name") + 1] == "NW-MX32013-2"
+    assert "--fastq-names" not in command
+    assert result.loc["NW-MX32013-2", "load_name"] == "3492_A01"
