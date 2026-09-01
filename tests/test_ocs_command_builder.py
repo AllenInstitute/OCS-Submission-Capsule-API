@@ -756,9 +756,15 @@ def test_build_ocs_job_submission_command_handles_mixed_rows(config, make_fastq_
 def test_build_ocs_job_submission_command_builds_one_forced_alignment_per_load(config, make_fastq_record):
     """When alignment is forced for load inputs, check that each completed load gets one command."""
     records = [
-        make_fastq_record(fastq_name="load-1-fastq-1", load_name="LOAD_1", align_status="COMPLETED"),
-        make_fastq_record(fastq_name="load-1-fastq-2", load_name="LOAD_1", align_status="COMPLETED"),
-        make_fastq_record(fastq_name="load-2-fastq-1", load_name="LOAD_2", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38012-1", load_name="3592-10_A01", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38025-2", load_name="3687-26_A01", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38025-3", load_name="3687-26_A01", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38025-4", load_name="3687-26_A01", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38025-5", load_name="3687-26_A01", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38026-1", load_name="3632-25_A02", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38026-2", load_name="3632-25_A02", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38026-3", load_name="3632-25_A02", align_status="COMPLETED"),
+        make_fastq_record(fastq_name="NW-FX38026-4", load_name="3632-25_A02", align_status="COMPLETED"),
     ]
 
     result = build_ocs_job_submission_command(
@@ -773,9 +779,13 @@ def test_build_ocs_job_submission_command_builds_one_forced_alignment_per_load(c
 
     alignment_commands = result.loc[result["align_should_execute"], "align_command_args"]
 
-    assert len(result) == 3
-    assert len(alignment_commands) == 2
-    assert [command[command.index("--load-names") + 1] for command in alignment_commands] == ["LOAD_1", "LOAD_2"]
+    assert len(result) == 9
+    assert len(alignment_commands) == 3
+    assert [command[command.index("--load-names") + 1] for command in alignment_commands] == [
+        "3592-10_A01",
+        "3687-26_A01",
+        "3632-25_A02",
+    ]
 
 
 def test_build_ocs_job_submission_command_requires_every_fastq_in_load_to_complete_ingest(
