@@ -42,14 +42,14 @@
         }
       }
     },
-    "macaque | macaque_nemestrina | macaque-nemestrina | macaque_fascicularis": {
+    "macaque | macaque_nemestrina | macaque-nemestrina | macaque_fascicularis | macaque-fascicularis": {
       "RTX": "macaque_ncbi_mmul10_genome_star2.7.1a-1",
       "MTX": "macaque_ncbi_mmul10_genome_star2.7.1a"
     },
     "african-green-monkey": {
       "all": "african-green-monkey_ncbi_vero-who-p1-0_genomefixed_star2.7.1a"
     },
-    "arctic-ground-squirrel": {
+    "arctic-ground-squirrel | arctic_ground_squirrel": {
       "all": "arctic-ground-squirrel_ncbi_asm342692v1_genome_star2.7.1a"
     },
     "armadillo": {
@@ -70,7 +70,7 @@
     "dog": {
       "all": "dog_ncbi_uu-cfam-gsd-1-0_genome_star2.7.1a"
     },
-    "egyptian-fruit-bat": {
+    "egyptian-fruit-bat | egyptian_fruit_bat": {
       "all": "egyptian-fruit-bat_ncbi_mrouaeg1_genome.fixed_star2.7.1a"
     },
     "ferret": {
@@ -82,7 +82,7 @@
     "gorilla": {
       "all": "gorilla_ncbi_kamilah-ggo-v0_genome_star2.7.1a"
     },
-    "gray-mouse-lemur": {
+    "gray-mouse-lemur | gray_mouse_lemur": {
       "all": "gray-mouse-lemur_ncbi_mmur-3-0_genome_star2.7.1a"
     },
     "harbor-porpoise | harbor_porpoise": {
@@ -92,7 +92,7 @@
     "common-marmoset": {
       "all": "marmoset_ncbi_caljac240-pri_genome_arc-v2-2"
     },
-    "naked-mole-rat": {
+    "naked-mole-rat | naked_mole_rat": {
       "all": "naked-mole-rat_ncbi_hetgla-female-1-0_genome_star2.7.1a"
     },
     "opossum": {
