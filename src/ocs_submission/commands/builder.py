@@ -196,18 +196,9 @@ def build_ocs_command_args(
         organism_common_name=organism_common_name,
         library_prep_method_name=library_prep_method_name,
     )
-    if batch_processing and modality in ("RTX", "RFX"):
-        input_name = fastq_record.fastq_name
-        input_name_flag = "fastq-names"
-    else:
-        input_name = fastq_record.load_name
-        input_name_flag = "load-names"
-
     command_template_field_values = {
         "reference_name": reference_name,
         "load_name": fastq_record.load_name,
-        "input_name": input_name,
-        "input_name_flag": input_name_flag,
         "email": email,
         "chemistry": chemistry_by_library_prep.get(library_prep_method_name, ""),
         "probe_set": probe_set,
@@ -216,6 +207,9 @@ def build_ocs_command_args(
 
     command_args = list(command_template["command"])
     for argument in command_template["arguments"]:
+        if batch_processing and modality in ("RTX", "RFX") and argument["flag"] == "--load-names":
+            command_args.extend(["--fastq-names", fastq_record.fastq_name])
+            continue
         command_args.append(argument["flag"].format(**command_template_field_values))
         if "value" in argument:
             command_args.append(argument["value"].format(**command_template_field_values))

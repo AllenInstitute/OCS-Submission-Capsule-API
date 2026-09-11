@@ -245,6 +245,24 @@ def test_build_ocs_command_args_renders_template_values(config, make_fastq_recor
     assert spacing == 180
 
 
+def test_build_ocs_command_args_uses_fastq_name_for_rtx_batch_processing(config, make_fastq_record):
+    """When RTX batch processing is enabled, check that the complete load argument is replaced."""
+    template = config["workflows"]["MTX"]["alignment_command_configs"][0]
+    record = make_fastq_record(fastq_name="FASTQ_1", load_name="LOAD_1")
+
+    command_args, _ = build_ocs_command_args(
+        config=config,
+        fastq_record=record,
+        modality="RTX",
+        email=EMAIL,
+        command_template=template,
+        batch_processing=True,
+    )
+
+    assert "--load-names" not in command_args
+    assert command_args[command_args.index("--fastq-names") + 1] == "FASTQ_1"
+
+
 def test_build_ocs_command_args_renders_probe_set_execution_vcpus_and_valueless_flags(config, make_fastq_record):
     """When building a command, check that it includes the probe set, CPU count, and a flag with no value."""
     template = _command_config(

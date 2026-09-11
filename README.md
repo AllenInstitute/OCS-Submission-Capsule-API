@@ -211,7 +211,7 @@ Key sections:
 | `job_settings` | Submission limits and spacing between job submissions |
 | `status_mappings` | Defines which OCS statuses count as complete |
 
-Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{input_name}`, `{input_name_flag}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`. `{input_name}` and `{input_name_flag}` are used together to render either `--load-names <load_name>` or, for RTX/RFX batch processing, `--fastq-names <fastq_name>`.
+Command templates support placeholders such as `{reference_name}`, `{load_name}`, `{email}`, `{chemistry}`, `{probe_set}`, and `{execution_vcpus}`. For RTX/RFX batch processing, the command builder replaces `--load-names <load_name>` with `--fastq-names <fastq_name>`.
 
 When alignment or post-alignment is due but a FASTQ sample's library prep has no command, the capsule skips that stage and reports the FASTQ name in the log and summary email.
 Missing chemistry and probe-set mappings continue to render as empty command values.
