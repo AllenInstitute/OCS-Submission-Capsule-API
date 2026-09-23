@@ -165,13 +165,7 @@ def load_fastq_records_df_from_fastq_names(fastq_names: list[str]) -> pd.DataFra
 
 
 def load_fastq_records_df_from_load_names(load_names: list[str], modality: str) -> pd.DataFrame:
-    """
-    Build a dataframe for every FASTQ associated with the provided load names.
-
-    The dataframe has the columns in ``FASTQ_RECORD_COLUMNS`` and includes FASTQ metadata
-    plus ingest, alignment, and post-alignment statuses. For a load with paired FASTQs,
-    status is checked only for the record whose vendor batch matches the requested modality.
-    """
+    """Load each FASTQ in the requested loads and check status using the modality FASTQ."""
     load_metadata_df = query_metadata(load_name_list=load_names)
     status_record_indexes = []
     for _, load_group in load_metadata_df.groupby("load_name", sort=False):

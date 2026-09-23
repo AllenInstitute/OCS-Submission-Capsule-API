@@ -98,7 +98,7 @@ Run these commands from a Python 3.12+ environment with the `ocs` CLI on `PATH`.
 - Load FASTQ metadata from an OCS Tracker export CSV, a vendor batch name, or FASTQ names.
 - Create an alignment command only after FASTQ sample ingest is complete.
 - Build a post-alignment command only after alignment is complete.
-- For load-name inputs, check every FASTQ in each load and build one command per load.
+- For load-name inputs, check the modality FASTQ and build one command per load.
 - Skip a FASTQ sample when its library prep has no command.
 - Skip a stage when it is complete or already in progress.
 - Submit commands through the `ocs` CLI within the configured job limit.
