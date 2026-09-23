@@ -48,15 +48,6 @@ def _combined_stage_status(statuses: pd.Series, complete_statuses: list[str]) ->
     return "NOT COMPLETED"
 
 
-def _empty_job_command_record(stage: Stage, library_prep_unconfigured: bool) -> dict:
-    """Return non-executable job fields for another FASTQ in the same load."""
-    stage_prefix = stage.ocs_stage_name
-    job_record: dict[str, object] = {f"{stage_prefix}_{field}": None for field in JOB_RECORD_FIELDS}
-    job_record[f"{stage_prefix}_should_execute"] = False
-    job_record[f"{stage_prefix}_library_prep_unconfigured"] = library_prep_unconfigured
-    return job_record
-
-
 def unconfigured_library_prep_fastq_names(ocs_job_commands_df: pd.DataFrame) -> list[str]:
     """
     Return FASTQ names skipped because their library prep has no command.
@@ -383,7 +374,7 @@ def build_ocs_job_submission_command(
     group_by_load_name: bool = False,
 ) -> pd.DataFrame:
     """
-    Build the submission manifest with one row per FASTQ sample.
+    Build the submission manifest with one row per FASTQ sample or requested load.
 
     Parameters:
     fastq_records_df: A dataframe of fastq samples, one row per sample.
@@ -396,7 +387,7 @@ def build_ocs_job_submission_command(
     group_by_load_name: Whether all FASTQs in a load should produce one load-level command.
 
     Returns:
-    A dataframe ready for submission, with one row per fastq sample.
+    A dataframe ready for submission, with one row per FASTQ sample or requested load.
     """
     command_row_list = []
     if group_by_load_name:
@@ -407,8 +398,22 @@ def build_ocs_job_submission_command(
         )
 
     for fastq_record_group in fastq_record_groups:
-        command_record = fastq_record_group.iloc[0].copy()
         if group_by_load_name:
+            representative_position = next(
+                (
+                    position
+                    for position, batch_name in enumerate(fastq_record_group["batch_name_from_vendor"])
+                    if str(batch_name).startswith(modality)
+                ),
+                0,
+            )
+            ordered_positions = [representative_position] + [
+                position for position in range(len(fastq_record_group)) if position != representative_position
+            ]
+            ordered_group = fastq_record_group.iloc[ordered_positions]
+            command_record = ordered_group.iloc[0].copy()
+            manifest_fastq_name = " | ".join(ordered_group["fastq_name"].astype(str))
+            manifest_library_prep = " | ".join(ordered_group["library_prep_method_name"].astype(str))
             status_mappings = config["status_mappings"]
             command_record["ingest_status"] = _combined_stage_status(
                 fastq_record_group["ingest_status"], status_mappings["ingest_complete"]
@@ -419,6 +424,10 @@ def build_ocs_job_submission_command(
             command_record["postalign_status"] = _combined_stage_status(
                 fastq_record_group["postalign_status"], status_mappings["post_alignment_complete"]
             )
+        else:
+            command_record = fastq_record_group.iloc[0].copy()
+            manifest_fastq_name = command_record.fastq_name
+            manifest_library_prep = command_record.library_prep_method_name
 
         alignment_record = build_alignment_job_command_record(
             fastq_record=command_record,
@@ -439,34 +448,22 @@ def build_ocs_job_submission_command(
             batch_processing=batch_processing,
         )
 
-        for position, fastq_record in enumerate(fastq_record_group.itertuples(index=False)):
-            if position == 0:
-                fastq_alignment_record = alignment_record
-                fastq_postalign_record = postalign_record
-            else:
-                fastq_alignment_record = _empty_job_command_record(
-                    Stage.ALIGNMENT, alignment_record["align_library_prep_unconfigured"]
-                )
-                fastq_postalign_record = _empty_job_command_record(
-                    Stage.POST_ALIGNMENT, postalign_record["postalign_library_prep_unconfigured"]
-                )
+        shared_record = {
+            "fastq_name": manifest_fastq_name,
+            "study_set": command_record.study_set,
+            "load_name": command_record.load_name,
+            "library_prep_method_name": manifest_library_prep,
+            "organism_common_name": command_record.organism_common_name,
+            "batch_name_from_vendor": command_record.batch_name_from_vendor,
+            "modality": modality,
+            "ingest_status": command_record.ingest_status,
+            "align_status": command_record.align_status,
+            "postalign_status": command_record.postalign_status,
+            "force_submission": force_submission,
+            "dry_run": dry_run,
+            "notify_email": email,
+        }
 
-            shared_record = {
-                "fastq_name": fastq_record.fastq_name,
-                "study_set": fastq_record.study_set,
-                "load_name": fastq_record.load_name,
-                "library_prep_method_name": fastq_record.library_prep_method_name,
-                "organism_common_name": fastq_record.organism_common_name,
-                "batch_name_from_vendor": fastq_record.batch_name_from_vendor,
-                "modality": modality,
-                "ingest_status": fastq_record.ingest_status,
-                "align_status": fastq_record.align_status,
-                "postalign_status": fastq_record.postalign_status,
-                "force_submission": force_submission,
-                "dry_run": dry_run,
-                "notify_email": email,
-            }
-
-            command_row_list.append({**shared_record, **fastq_alignment_record, **fastq_postalign_record})
+        command_row_list.append({**shared_record, **alignment_record, **postalign_record})
 
     return pd.DataFrame(command_row_list, columns=COMMAND_RECORD_COLUMNS)

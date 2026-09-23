@@ -797,13 +797,49 @@ def test_build_ocs_job_submission_command_builds_one_forced_alignment_per_load(c
 
     alignment_commands = result.loc[result["align_should_execute"], "align_command_args"]
 
-    assert len(result) == 9
+    assert len(result) == 3
     assert len(alignment_commands) == 3
     assert [command[command.index("--load-names") + 1] for command in alignment_commands] == [
         "3592-10_A01",
         "3687-26_A01",
         "3632-25_A02",
     ]
+
+
+def test_build_ocs_job_submission_command_uses_matching_modality_record_for_load(config, make_fastq_record):
+    """When a multiome load has ATAC and GEX FASTQs, check that MTX metadata controls its command."""
+    records = [
+        make_fastq_record(
+            fastq_name="NW-AT36021-10",
+            load_name="3796_A01",
+            library_prep_method_name="10xMultX_ATAC",
+            batch_name_from_vendor="ATX-36021",
+        ),
+        make_fastq_record(
+            fastq_name="NW-MX32021-10",
+            load_name="3796_A01",
+            library_prep_method_name="10xMultX_GEX",
+            batch_name_from_vendor="MTX-32021",
+        ),
+    ]
+
+    result = build_ocs_job_submission_command(
+        fastq_records_df=pd.DataFrame([vars(record) for record in records]),
+        modality="MTX",
+        config=config,
+        email=EMAIL,
+        force_submission="alignment",
+        dry_run=True,
+        group_by_load_name=True,
+    )
+
+    assert len(result) == 1
+    assert result.at[0, "fastq_name"] == "NW-MX32021-10 | NW-AT36021-10"
+    assert result.at[0, "library_prep_method_name"] == "10xMultX_GEX | 10xMultX_ATAC"
+    assert result.at[0, "batch_name_from_vendor"] == "MTX-32021"
+    assert bool(result.at[0, "align_should_execute"]) is True
+    assert bool(result.at[0, "align_library_prep_unconfigured"]) is False
+    assert "--load-names" in result.at[0, "align_command_args"]
 
 
 def test_build_ocs_job_submission_command_requires_every_fastq_in_load_to_complete_ingest(
