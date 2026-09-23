@@ -146,7 +146,7 @@ def main() -> None:
     elif args.batch_name_from_vendor:
         fastq_records_df = load_fastq_records_df_from_batch(args.batch_name_from_vendor)
     elif args.load_names:
-        fastq_records_df = load_fastq_records_df_from_load_names(args.load_names)
+        fastq_records_df = load_fastq_records_df_from_load_names(args.load_names, args.modality)
     elif args.fastq_names:
         fastq_records_df = load_fastq_records_df_from_fastq_names(args.fastq_names)
     else:
@@ -161,7 +161,8 @@ def main() -> None:
         )
         return
 
-    log_fastq_status_summaries(fastq_records_df=fastq_records_df)
+    status_summary_df = fastq_records_df.drop_duplicates("load_name") if args.load_names else fastq_records_df
+    log_fastq_status_summaries(fastq_records_df=status_summary_df)
 
     ocs_job_commands_df = build_ocs_job_submission_command(
         fastq_records_df=fastq_records_df,

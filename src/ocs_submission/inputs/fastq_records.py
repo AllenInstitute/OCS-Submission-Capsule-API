@@ -164,16 +164,30 @@ def load_fastq_records_df_from_fastq_names(fastq_names: list[str]) -> pd.DataFra
     return fastq_record_df[FASTQ_RECORD_COLUMNS]
 
 
-def load_fastq_records_df_from_load_names(load_names: list[str]) -> pd.DataFrame:
+def load_fastq_records_df_from_load_names(load_names: list[str], modality: str) -> pd.DataFrame:
     """
     Build a dataframe for every FASTQ associated with the provided load names.
 
     The dataframe has the columns in ``FASTQ_RECORD_COLUMNS`` and includes FASTQ metadata
-    plus ingest, alignment, and post-alignment statuses.
+    plus ingest, alignment, and post-alignment statuses. For a load with paired FASTQs,
+    status is checked only for the record whose vendor batch matches the requested modality.
     """
     load_metadata_df = query_metadata(load_name_list=load_names)
-    load_record_df = check_all_fastq_stage_status(fastq_records_df=load_metadata_df)
-    return load_record_df[FASTQ_RECORD_COLUMNS]
+    status_record_indexes = []
+    for _, load_group in load_metadata_df.groupby("load_name", sort=False):
+        modality_records = load_group[load_group["batch_name_from_vendor"].str.startswith(modality, na=False)]
+        if modality_records.empty:
+            modality_records = load_group
+        status_record_indexes.append(modality_records.index[0])
+
+    status_records_df = check_all_fastq_stage_status(fastq_records_df=load_metadata_df.loc[status_record_indexes])
+    status_by_load_name = status_records_df.set_index("load_name")
+    for stage in Stage:
+        load_metadata_df[stage.fastq_status_column] = load_metadata_df["load_name"].map(
+            status_by_load_name[stage.fastq_status_column]
+        )
+
+    return load_metadata_df[FASTQ_RECORD_COLUMNS]
 
 
 def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame:

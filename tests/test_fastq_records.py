@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -107,8 +108,51 @@ def test__load_fastq_records_df_from_load_names__returns_fastq_records():
 
     with patch("ocs_submission.inputs.fastq_records.query_metadata", return_value=metadata_df) as query_metadata:
         with patch("ocs_submission.inputs.fastq_records.get_latest_results", return_value=status_df):
-            result = load_fastq_records_df_from_load_names(["LOAD_1", "LOAD_2"])
+            result = load_fastq_records_df_from_load_names(["LOAD_1", "LOAD_2"], "MTX")
 
     query_metadata.assert_called_once_with(load_name_list=["LOAD_1", "LOAD_2"])
     assert result.loc["FASTQ_1", "fastq_name"] == "FASTQ_1"
     assert result.loc["FASTQ_1", "align_status"] == "COMPLETED"
+
+
+def test__load_fastq_records_df_from_load_names__checks_only_modality_fastq(caplog):
+    caplog.set_level(logging.INFO)
+    metadata_df = pd.DataFrame(
+        [
+            {
+                "fastq_name": "NW-AT36021-10",
+                "study_set": "Marmoset_Dev",
+                "load_name": "3796_A01",
+                "library_prep_method_name": "10xMultX_ATAC",
+                "organism_common_name": "common-marmoset",
+                "batch_name_from_vendor": "ATX-36021",
+            },
+            {
+                "fastq_name": "NW-MX32021-10",
+                "study_set": "Marmoset_Dev",
+                "load_name": "3796_A01",
+                "library_prep_method_name": "10xMultX_GEX",
+                "organism_common_name": "common-marmoset",
+                "batch_name_from_vendor": "MTX-32021",
+            },
+        ]
+    ).set_index("fastq_name", drop=False)
+    status_df = pd.DataFrame(
+        {
+            "ingest_status": ["COMPLETED"],
+            "align_status": ["NOT COMPLETED"],
+            "postalign_status": ["NOT COMPLETED"],
+        },
+        index=pd.Index(["NW-MX32021-10"], name="fastq_name"),
+    )
+
+    with patch("ocs_submission.inputs.fastq_records.query_metadata", return_value=metadata_df):
+        with patch(
+            "ocs_submission.inputs.fastq_records.get_latest_results", return_value=status_df
+        ) as get_latest_results:
+            result = load_fastq_records_df_from_load_names(["3796_A01"], "MTX")
+
+    get_latest_results.assert_called_once_with(batch_name_from_vendor="MTX-32021")
+    assert "Checking Status for NW-MX32021-10" in caplog.text
+    assert "Checking Status for NW-AT36021-10" not in caplog.text
+    assert result["ingest_status"].tolist() == ["COMPLETED", "COMPLETED"]
