@@ -3,7 +3,7 @@
   // Edit this file to add or change alignment and post-alignment commands.
   //
   // Alignment — workflows.<MODALITY>.alignment_command_configs
-  //   1. Add a config object with name, match, command, arguments, and spacing.
+  //   1. Add a config object with name (Can be any name), match, command, arguments, and spacing.
   //   2. In match, set library_preps and optionally organisms.
   //      Omit organisms to match any organism, or list specific names to restrict.
   //   3. Put more specific configs before general ones — first match wins.
@@ -61,6 +61,9 @@
     },
     "cat": {
       "all": "cat_ncbi_f-catus-fca126-mat1-0_genome_star2.7.1a"
+    },
+    "coyote": {
+      "all": "dog_ncbi_uu-cfam-gsd-1-0_genome_star2.7.1a"
     },
     "chimp": {
       "all": "chimp_ncbi_mpantro3-v11_genome.fixed_star2.7.1a"
@@ -165,6 +168,10 @@
             {
               "flag": "--asset-tag",
               "value": "2.2.0"
+            },
+            {
+              "flag": "--cellranger-addopts",
+              "value": "--create-bam=true"
             },
             {
               "flag": "--load-names",
@@ -499,7 +506,6 @@
               "10Xv3",
               "10Xv2",
               "10xV3.1_HT_CP",
-              "10xV4_PX",
               "10xV4",
               "10xV4-TK"
             ]
@@ -632,7 +638,7 @@
             },
             {
               "flag": "--asset-tag",
-              "value": "1.1.0"
+              "value": "v1.1.2"
             },
             {
               "flag": "--load-names",
