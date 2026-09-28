@@ -38,6 +38,9 @@ jobs:
       - name: Install project and dev dependencies (from lockfile)
         run: uv sync --extra dev --frozen
 
+      - name: Install just
+        run: uv tool install rust-just
+
       - name: Check formatting (ruff format)
         run: uv run --frozen ruff format --check src tests
 
@@ -45,7 +48,7 @@ jobs:
         run: uv run --frozen ruff check src tests
 
       - name: Run tests
-        run: uv run --frozen pytest --cov=ocs_submission --cov-report=term-missing
+        run: just test
 
       - name: Type check (mypy)
         run: uv run --frozen mypy src
