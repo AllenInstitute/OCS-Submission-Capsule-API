@@ -38,10 +38,10 @@ DATA_MANIFEST_PATH = os.path.join(OUTPUT_DIR, "ocs_job_commands_manifest.json")
 def parse_args() -> argparse.Namespace:
     """Read the parameters for the OCS submission workflow.
 
-    Batch Processing takes precedence over Backlog or Resequencing Runs and
-    requires both modality and batch name from vendor. For backlog runs, use
-    the export file from OCS Tracker, load names, or fastq sample names, in that
-    order. Email and dry run work with either section.
+    Batch Processing and Backlog or Resequencing Runs cannot be used together.
+    Batch Processing requires modality and batch name from vendor. For backlog
+    runs, use the export file from OCS Tracker, load names, or fastq sample names,
+    in that order. Email and dry run work with either section.
     """
     parser = argparse.ArgumentParser(description="OCS Submission Capsule")
     batch = parser.add_argument_group("Batch Processing")
@@ -71,8 +71,10 @@ def parse_args() -> argparse.Namespace:
     batch.add_argument(
         "--audit",
         choices=("true", "false"),
-        default="false",
-        help="Audit each batch name from vendor after processing, except during a dry run (true/false, default: false)",
+        help=(
+            "Run a LIMS audit after batch processing (true/false). Defaults to auditing alignment submissions. "
+            "False always disables audit. Dry runs never audit."
+        ),
     )
     backlog = parser.add_argument_group("Backlog or Resequencing Runs")
     backlog.add_argument("--ocs-tracker-exporter", help="Export file from OCS Tracker")
@@ -102,11 +104,7 @@ def parse_args() -> argparse.Namespace:
     )
     if batch_selected:
         if args.ocs_tracker_exporter or args.fastq_names or args.load_names:
-            logger.info(
-                "Batch Processing selected. Ignoring the export file from OCS Tracker, "
-                "fastq sample names, and load names."
-            )
-        args.ocs_tracker_exporter = args.fastq_names = args.load_names = None
+            parser.error("Use inputs from either Batch Processing or Backlog or Resequencing Runs, not both.")
         if not args.modality or not args.batch_name_from_vendor:
             parser.error("Batch Processing requires --modality and --batch-name-from-vendor.")
     elif args.ocs_tracker_exporter:
@@ -124,8 +122,10 @@ def main() -> None:
     This workflow loads fastq samples from one input source, builds and submits
     or dry-runs alignment and post-alignment commands, and writes a JSON manifest.
     Summary emails are sent when there is something to report and an email
-    address is provided. Audit emails are sent when audit is enabled and an
-    email address is provided. Dry runs do not submit jobs or send either email.
+    address is provided. Batch alignment submissions run a LIMS audit by default
+    when an email address is provided. Explicitly enabling audit also allows it
+    for other batch runs. Disabling audit always skips it. Backlog and dry runs
+    never run audit. Dry runs do not submit jobs or send either email.
     """
     args = parse_args()
 
@@ -201,7 +201,12 @@ def main() -> None:
 
     logger.info("OCS Submission Completed.")
 
-    if args.audit == "true" and not dry_run:
+    if (
+        args.batch_name_from_vendor
+        and args.audit != "false"
+        and not dry_run
+        and (args.audit == "true" or ocs_job_commands_df["align_should_execute"].any())
+    ):
         for batch_name in ocs_job_commands_df["batch_name_from_vendor"].dropna().unique():
             logger.info(f"Running AUDIT for batch name from vendor: {batch_name}")
             send_audit_email(batch_name, args.email)

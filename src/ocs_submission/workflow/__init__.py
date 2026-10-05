@@ -1,1 +1,1 @@
-"""Shared domain types and pipeline concepts."""
+"""Stage names and status columns for the OCS submission workflow."""

@@ -7,6 +7,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Changed
+
+- Batch Processing and Backlog or Resequencing Runs inputs cannot be combined. Mixed inputs stop the run with an error.
+- Batch alignment submissions now run audit by default when `--email` is provided. Backlog and dry runs never run audit.
+  `--audit false` always disables audit.
+
 ## [0.1.5] - 2026-09-23
 
 ### Added
@@ -15,10 +21,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
-- OCS Tracker CSV headers now accept capitalization differences, spaces, underscores, hyphens, and clear minor typos.
+- Headers in the export file from OCS Tracker now accept capitalization differences, spaces, underscores, hyphens, and clear minor typos.
   `Organism Common Name` is accepted as an alias for `Organism`.
-- Multiome load manifests now combine the GEX and ATAC FASTQ names and library prep names into one row. The MTX/GEX
-  record supplies the vendor batch, command configuration, and OCS status for that row.
+- Multiome load manifests now combine the GEX and ATAC fastq sample names and library prep names into one row. The MTX/GEX
+  fastq sample supplies the batch name from vendor, command configuration, and OCS status for that row.
 - GEMX multiome alignment now uses Cell Ranger ARC 2.2.0 with `--create-bam=true`.
 - `10xV4_PX` now uses Cell Ranger Multi 9.0.1 with BAM creation and is no longer sent through standard RNA-seq QC.
 - Mouse CellFlex alignment now uses the GRCm39 FX v2 reference and probe set, Cell Ranger Multi 10.1.0, 128 vCPUs,
@@ -29,8 +35,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
-- Load-name submissions now check OCS status only for the FASTQ whose vendor batch matches the requested modality.
-- Load-name submissions now create one command per load instead of one command for each FASTQ in the load.
+- Load-name submissions now check OCS status only for the fastq sample whose batch name from vendor matches the requested modality.
+- Load-name submissions now create one command per load instead of one command for each fastq sample in the load.
 - OCS metadata lookup now uses the singular `--fastq-name` flag. RTX and RFX batch submissions continue to use the
   plural `--fastq-names` flag required by alignment commands.
 - Dry-run, submission, and job-limit logs now show the load name when the command uses `--load-names`.
@@ -65,7 +71,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Fixed
 
 - Samples whose library prep is not configured for a scheduled stage are now skipped instead of stopping command
-  construction, and their fastq names are reported in the logs and submission summary email.
+  construction, and their fastq sample names are reported in the logs and submission summary email.
 - Commands now support a single probe set shared by an organism as well as probe sets mapped by library prep.
 
 ## [0.1.2] - 2026-07-14
@@ -108,7 +114,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - Audit CSV attachments in SES raw email
 - Notification sender address for summary emails
-- Fastq stage status log labels
+- Fastq sample stage status log labels
 
 ## [0.1.0] - 2026-06-26
 

@@ -1,12 +1,10 @@
-from __future__ import annotations
-
 import asyncio
 import json
 import logging
 import subprocess
 import time
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 
@@ -94,14 +92,14 @@ def get_latest_results(
     batch_name_from_vendor: str | None = None,
 ) -> pd.DataFrame:
     """
-    Return the latest OCS result for FASTQ names or a vendor batch.
+    Return the latest OCS stage statuses for fastq samples.
 
     Parameters:
-    fastq_name_list: FASTQ names whose OCS status should be checked.
-    batch_name_from_vendor: Vendor batch whose OCS status should be checked.
+    fastq_name_list: Names of the fastq samples whose OCS status should be checked.
+    batch_name_from_vendor: Batch name from vendor to use for the OCS status lookup.
 
     Returns:
-    A dataframe with one row per fastq name and ingest_status, align_status, and
+    A dataframe with one row per fastq sample and ingest_status, align_status, and
     postalign_status columns set to COMPLETED or NOT COMPLETED.
     """
 
@@ -167,17 +165,17 @@ def query_metadata(
     load_name_list: list[str] | None = None,
 ) -> pd.DataFrame:
     """
-    Return OCS metadata for FASTQ names or a vendor batch.
+    Load OCS metadata using fastq sample names, load names, or a batch name from vendor.
 
     Raises ``ValueError`` unless exactly one lookup input is provided.
 
     Parameters:
-    fastq_name_list: A list of fastq names to query metadata for.
+    fastq_name_list: A list of fastq sample names to query metadata for.
     load_name_list: A list of load names to query metadata for.
     batch_name_from_vendor: A batch name from vendor to query metadata for.
 
     Returns:
-    A dataframe with the index set to the fastq name and the columns set to the metadata fields.
+    A dataframe with the index set to the fastq sample name and the columns set to the metadata fields.
     """
 
     lookup_count = sum([bool(fastq_name_list), bool(load_name_list), bool(batch_name_from_vendor)])
@@ -259,7 +257,7 @@ def execute_ocs_submission_commands(
 
     Parameters:
     ocs_job_commands_df: A dataframe containing should-execute flags for each stage
-        and FASTQ name.
+        and fastq sample name.
     job_limit: The maximum number of jobs allowed to be running at OCS.
     poll_interval_hours: The number of hours to wait between checking if the job limit is reached.
 
@@ -272,27 +270,19 @@ def execute_ocs_submission_commands(
     ]
 
     for record_index in submit_indices:
-        if ocs_job_commands_df.at[record_index, "align_should_execute"]:
-            stage = Stage.ALIGNMENT
-        else:
-            stage = Stage.POST_ALIGNMENT
+        record = ocs_job_commands_df.loc[record_index]
+        stage = Stage.ALIGNMENT if record["align_should_execute"] else Stage.POST_ALIGNMENT
 
         col = stage.ocs_stage_name
-        dry_run = cast(bool, ocs_job_commands_df.at[record_index, "dry_run"])
-        fastq_name = cast(str, ocs_job_commands_df.at[record_index, "fastq_name"])
-        command = cast(str, ocs_job_commands_df.at[record_index, f"{col}_command"])
-        command_args = cast(list[str], ocs_job_commands_df.at[record_index, f"{col}_command_args"])
-        submission_name = (
-            cast(str, ocs_job_commands_df.at[record_index, "load_name"])
-            if "--load-names" in command_args
-            else fastq_name
-        )
+        command = record[f"{col}_command"]
+        command_args = record[f"{col}_command_args"]
+        submission_name = record["load_name"] if "--load-names" in command_args else record["fastq_name"]
 
-        if dry_run:
+        if record["dry_run"]:
             logger.info(f"Dry run {col} for {submission_name}: {command}")
             continue
 
-        while not can_submit_job(job_limit=job_limit, dry_run=dry_run):
+        while not can_submit_job(job_limit=job_limit):
             logger.info(
                 f"Job limit reached; waiting {poll_interval_hours} hour(s) "
                 f"before re-checking capacity for {submission_name} ({col})."
@@ -319,7 +309,7 @@ def execute_ocs_submission_commands(
             ocs_job_commands_df.at[record_index, f"{col}_error_message"] = f"Command execution failed: {error}"
             logger.error(f"Command execution failed: {error}")
 
-        spacing = cast(float, ocs_job_commands_df.at[record_index, f"{col}_spacing"])
+        spacing = record[f"{col}_spacing"]
         if spacing and record_index != submit_indices[-1]:
             time.sleep(spacing)
 

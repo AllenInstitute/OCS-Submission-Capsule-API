@@ -1,1 +1,1 @@
-"""Adapters for external OCS, database, email, and environment systems."""
+"""Run OCS commands, read credentials, and send emails."""

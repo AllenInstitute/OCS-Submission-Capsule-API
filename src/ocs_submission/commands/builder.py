@@ -50,9 +50,9 @@ def _combined_stage_status(statuses: pd.Series, complete_statuses: list[str]) ->
 
 def unconfigured_library_prep_fastq_names(ocs_job_commands_df: pd.DataFrame) -> list[str]:
     """
-    Return FASTQ names skipped because their library prep has no command.
+    Return the names of fastq samples skipped because their library prep has no command.
 
-    The log and summary email report these FASTQ names.
+    The log and summary email report these fastq sample names.
     """
     unconfigured = ocs_job_commands_df[UNCONFIGURED_LIBRARY_PREP_COLUMNS].any(axis=1)
     return ocs_job_commands_df.loc[unconfigured, "fastq_name"].tolist()
@@ -66,7 +66,7 @@ def select_command_config(
     organism_common_name: str,
 ) -> dict | None:
     """
-    Return the first command template matching a FASTQ sample's stage, library prep, and organism.
+    Return the first command template matching a fastq sample's stage, library prep, and organism.
 
     Parameters:
     config: The OCS workflow configuration.
@@ -159,7 +159,7 @@ def build_ocs_command_args(
     batch_processing: bool = False,
 ) -> tuple[list[str], int]:
     """
-    Build a command for one FASTQ sample from a command template.
+    Build a command for one fastq sample from a command template.
 
     Parameters:
     config: The OCS workflow configuration.
@@ -167,7 +167,7 @@ def build_ocs_command_args(
     modality: The modality used to look up the reference genome.
     email: The notification email address for OCS.
     command_template: The base command, arguments, and wait time from the config.
-    batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
+    batch_processing: Whether to use the fastq sample name for RTX/RFX commands.
 
     Returns:
     Return command arguments and the wait time before the next command. Raise an error when
@@ -216,7 +216,7 @@ def build_alignment_job_command_record(
     batch_processing: bool = False,
 ) -> dict:
     """
-    Create an alignment command only after FASTQ sample ingest is complete.
+    Create an alignment command only after fastq sample ingest is complete.
 
     Skip the command when alignment is complete or in progress, unless the user forces alignment.
 
@@ -226,7 +226,7 @@ def build_alignment_job_command_record(
     config: The OCS workflow configuration.
     email: The notification email address for OCS.
     force_submission: Set to "alignment" to run alignment even if it would normally be skipped.
-    batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
+    batch_processing: Whether to use the fastq sample name for RTX/RFX commands.
 
     Returns:
     Return alignment fields for one manifest row. Leave command fields empty when alignment is
@@ -303,7 +303,7 @@ def build_post_alignment_job_command_record(
     force_submission: Set to "post-alignment" to run post-alignment even if it would normally
         be skipped.
     alignment_should_execute: Whether alignment is scheduled in the same pass.
-    batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
+    batch_processing: Whether to use the fastq sample name for RTX/RFX commands.
 
     Returns:
     Return post-alignment fields for one manifest row. Leave command fields empty when
@@ -374,7 +374,7 @@ def build_ocs_job_submission_command(
     group_by_load_name: bool = False,
 ) -> pd.DataFrame:
     """
-    Build the submission manifest with one row per FASTQ sample or requested load.
+    Build the submission manifest with one row per fastq sample or requested load.
 
     Parameters:
     fastq_records_df: A dataframe of fastq samples, one row per sample.
@@ -383,11 +383,11 @@ def build_ocs_job_submission_command(
     email: The notification email address recorded on each row.
     force_submission: Optionally force alignment or post-alignment to run.
     dry_run: Whether this run is a dry run (recorded on each row).
-    batch_processing: Whether to use the FASTQ name for RTX/RFX commands.
-    group_by_load_name: Whether all FASTQs in a load should produce one load-level command.
+    batch_processing: Whether to use the fastq sample name for RTX/RFX commands.
+    group_by_load_name: Whether the fastq samples in each load should produce one command per load.
 
     Returns:
-    A dataframe ready for submission, with one row per FASTQ sample or requested load.
+    A dataframe ready for submission, with one row per fastq sample or requested load.
     """
     command_row_list = []
     if group_by_load_name:

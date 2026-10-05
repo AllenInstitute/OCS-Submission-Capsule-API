@@ -1,6 +1,4 @@
-"""Pipeline stage names used across OCS CLI and FASTQ record columns."""
-
-from __future__ import annotations
+"""Pipeline stage names used by the OCS CLI and fastq sample status columns."""
 
 from enum import Enum
 

@@ -1,4 +1,4 @@
-"""Command construction for OCS workflow stages."""
+"""Build alignment and post-alignment commands for OCS."""
 
 from .builder import (
     COMMAND_CONFIG_BY_STAGE,

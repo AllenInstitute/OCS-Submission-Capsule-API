@@ -1,7 +1,5 @@
 """Load fastq sample metadata and stage statuses from OCS or the export file from OCS Tracker."""
 
-from __future__ import annotations
-
 import logging
 from collections import Counter
 
@@ -121,10 +119,9 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     if "Batch Name From Vendor" not in resolved_exporter_columns:
         fastq_name_column = resolved_exporter_columns["Fastq Name"]
         metadata_df = query_metadata(fastq_name_list=fastq_records_df[fastq_name_column].tolist())
-        batch_name_from_vendor_list = [
+        fastq_records_df["Batch Name From Vendor"] = [
             metadata_df.loc[fastq_name, "batch_name_from_vendor"] for fastq_name in fastq_records_df[fastq_name_column]
         ]
-        fastq_records_df["Batch Name From Vendor"] = batch_name_from_vendor_list
         resolved_exporter_columns["Batch Name From Vendor"] = "Batch Name From Vendor"
 
     fastq_records_df = fastq_records_df[
@@ -133,7 +130,6 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
         columns={
             resolved_exporter_columns[column_name]: output_column_name
             for column_name, output_column_name in EXPORTER_COLUMN_MAPPING.items()
-            if column_name in resolved_exporter_columns
         }
     )
     for stage in JOB_STAGES:
@@ -236,8 +232,6 @@ def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame
                     logger.info(f"  - No ingest entry found for {fastq_name}")
                     logger.info(f"  - {stage_label} Status: NOT COMPLETED")
             else:
-                if status == "NOT COMPLETED":
-                    fastq_records_df.at[index, stage.fastq_status_column] = status
                 logger.info(f"  - {stage_label} Status: {status}")
 
     return fastq_records_df

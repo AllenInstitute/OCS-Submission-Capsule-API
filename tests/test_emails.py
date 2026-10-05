@@ -36,7 +36,6 @@ def test_summary_email_reports_unconfigured_library_preps(send_email, make_fastq
                 make_fastq_record(**fastq_records.iloc[2].to_dict()), postalign_library_prep_unconfigured=True
             ),
         ],
-        columns=COMMAND_RECORD_COLUMNS,
     )
 
     emails.send_command_summary_email(ocs_job_commands_df=manifest, notify_email=EMAIL)
@@ -61,7 +60,6 @@ def test_summary_email_omits_report_line_when_all_configured(send_email, make_fa
                 align_executed_at="2026-07-15 07:00:37",
             )
         ],
-        columns=COMMAND_RECORD_COLUMNS,
     )
 
     emails.send_command_summary_email(ocs_job_commands_df=manifest, notify_email=EMAIL)
@@ -73,7 +71,6 @@ def test_summary_email_omits_report_line_when_all_configured(send_email, make_fa
 def test_summary_email_sends_when_only_unconfigured_preps(send_email, make_fastq_record):
     manifest = pd.DataFrame(
         [_manifest_row(make_fastq_record(), align_library_prep_unconfigured=True)],
-        columns=COMMAND_RECORD_COLUMNS,
     )
 
     emails.send_command_summary_email(ocs_job_commands_df=manifest, notify_email=EMAIL)

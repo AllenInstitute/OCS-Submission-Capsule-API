@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
+from ocs_submission.commands.builder import build_ocs_job_submission_command
 from ocs_submission.integrations.ocs_cli import execute_ocs_submission_commands, query_metadata
 
 
@@ -76,3 +77,74 @@ def test__query_metadata__looks_up_each_name_with_singular_flag(
         assert f"{lookup_flag}s" not in command
     expected = metadata.assign(study_set=fastq_records["study_set"]).set_index("fastq_name", drop=False)
     assert_frame_equal(result, expected)
+
+
+@pytest.mark.parametrize(
+    "align_status, stage",
+    [
+        pytest.param("NOT COMPLETED", "align", id="alignment"),
+        pytest.param("COMPLETED", "postalign", id="post_alignment"),
+    ],
+)
+@pytest.mark.parametrize(
+    "demand_status, success",
+    [
+        pytest.param("SUBMITTED", True, id="submitted"),
+        pytest.param("FAILED", False, id="failed"),
+    ],
+)
+def test__execute_ocs_submission_commands__records_submission_result(
+    config, make_fastq_record, align_status, stage, demand_status, success
+):
+    manifest = build_ocs_job_submission_command(
+        pd.DataFrame([vars(make_fastq_record(align_status=align_status))]),
+        modality="MTX",
+        config=config,
+        email="test@example.org",
+        force_submission=None,
+        dry_run=False,
+    )
+    response = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=json.dumps({"demand_status": demand_status, "demand_execution": {"demand_id": "demand-1"}}),
+    )
+
+    with (
+        patch("ocs_submission.integrations.ocs_cli.execute_ocs_cmd", autospec=True, return_value=response) as execute,
+        patch("ocs_submission.integrations.ocs_cli.can_submit_job", autospec=True, return_value=True),
+    ):
+        result = execute_ocs_submission_commands(manifest, job_limit=10)
+
+    execute.assert_called_once_with(manifest.at[0, f"{stage}_command_args"])
+    assert result is manifest
+    assert result.at[0, f"{stage}_submission_success"] == success
+    assert result.at[0, f"{stage}_demand_id"] == ("demand-1" if success else None)
+    assert result.at[0, f"{stage}_error_message"] == (None if success else "Job submission failed")
+    assert result.at[0, f"{stage}_executed_at"]
+
+
+def test__execute_ocs_submission_commands__records_command_failure(config, make_fastq_record):
+    manifest = build_ocs_job_submission_command(
+        pd.DataFrame([vars(make_fastq_record())]),
+        modality="MTX",
+        config=config,
+        email="test@example.org",
+        force_submission=None,
+        dry_run=False,
+    )
+
+    with (
+        patch(
+            "ocs_submission.integrations.ocs_cli.execute_ocs_cmd",
+            autospec=True,
+            side_effect=subprocess.CalledProcessError(1, manifest.at[0, "align_command_args"]),
+        ),
+        patch("ocs_submission.integrations.ocs_cli.can_submit_job", autospec=True, return_value=True),
+    ):
+        result = execute_ocs_submission_commands(manifest, job_limit=10)
+
+    assert not result.at[0, "align_submission_success"]
+    assert result.at[0, "align_demand_id"] is None
+    assert result.at[0, "align_error_message"].startswith("Command execution failed:")
+    assert result.at[0, "align_executed_at"]

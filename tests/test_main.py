@@ -40,17 +40,25 @@ def workflow(monkeypatch, tmp_path, config, fastq_records):
     return loaders, manifest
 
 
-def test__main__batch_ignores_all_backlog_inputs(monkeypatch, workflow):
+@pytest.mark.parametrize(
+    "audit_arguments",
+    [
+        pytest.param([], id="default_audit"),
+        pytest.param(["--audit", "true"], id="audit_enabled"),
+        pytest.param(["--audit", "false"], id="audit_disabled"),
+    ],
+)
+def test__main__batch_dry_run_uses_common_parameters(monkeypatch, workflow, audit_arguments):
     loaders, manifest = workflow
     monkeypatch.setattr(
         sys,
         "argv",
         (
             "ocs-submission --modality MTX --batch-name-from-vendor MTX-32013 "
-            "--ocs-tracker-exporter ignored.csv --fastq-names ignored --load-names ignored "
-            "--force-submission alignment --batch-processing true --audit true "
+            "--force-submission alignment --batch-processing true "
             f"--email {EMAIL} --dry-run true"
-        ).split(),
+        ).split()
+        + audit_arguments,
     )
 
     main.main()
@@ -68,17 +76,53 @@ def test__main__batch_ignores_all_backlog_inputs(monkeypatch, workflow):
 
 
 @pytest.mark.parametrize(
-    "batch_arguments",
+    "arguments",
     [
-        pytest.param(["--modality", "MTX"], id="modality"),
-        pytest.param(["--batch-name-from-vendor", "MTX-32013"], id="batch_name_from_vendor"),
-        pytest.param(["--force-submission", "alignment"], id="force_submission"),
-        pytest.param(["--batch-processing", "true"], id="use_fastq_names"),
-        pytest.param(["--audit", "true"], id="audit"),
+        pytest.param("--modality MTX --fastq-names NW-MX32013-2", id="modality"),
+        pytest.param("--batch-name-from-vendor MTX-32013 --fastq-names NW-MX32013-2", id="batch_name_from_vendor"),
+        pytest.param("--force-submission alignment --fastq-names NW-MX32013-2", id="force_submission"),
+        pytest.param("--batch-processing true --fastq-names NW-MX32013-2", id="use_fastq_names"),
+        pytest.param("--audit true --fastq-names NW-MX32013-2", id="audit"),
+        pytest.param(
+            "--modality MTX --batch-name-from-vendor MTX-32013 --ocs-tracker-exporter tracker.csv",
+            id="batch_and_tracker_export",
+        ),
+        pytest.param(
+            "--modality MTX --batch-name-from-vendor MTX-32013 --fastq-names NW-MX32013-2",
+            id="batch_and_fastq_samples",
+        ),
+        pytest.param(
+            "--modality MTX --batch-name-from-vendor MTX-32013 --load-names 3796_A01",
+            id="batch_and_load_names",
+        ),
     ],
 )
-def test__parse_args__partial_batch_does_not_fall_back_to_backlog(monkeypatch, capsys, batch_arguments):
-    monkeypatch.setattr(sys, "argv", ["ocs-submission", *batch_arguments, "--fastq-names", "NW-MX32013-2"])
+def test__main__rejects_mixed_batch_and_backlog_inputs(monkeypatch, capsys, workflow, arguments):
+    loaders, manifest = workflow
+    monkeypatch.setattr(sys, "argv", ["ocs-submission", *arguments.split()])
+
+    with pytest.raises(SystemExit, match="2"):
+        main.main()
+
+    assert (
+        "Use inputs from either Batch Processing or Backlog or Resequencing Runs, not both" in capsys.readouterr().err
+    )
+    for loader in loaders.values():
+        loader.assert_not_called()
+    main.execute_ocs_submission_commands.assert_not_called()
+    main.send_audit_email.assert_not_called()
+    assert not manifest.exists()
+
+
+@pytest.mark.parametrize(
+    "batch_arguments",
+    [
+        pytest.param(["--modality", "MTX"], id="modality_only"),
+        pytest.param(["--batch-name-from-vendor", "MTX-32013"], id="batch_name_only"),
+    ],
+)
+def test__parse_args__batch_requires_modality_and_batch_name(monkeypatch, capsys, batch_arguments):
+    monkeypatch.setattr(sys, "argv", ["ocs-submission", *batch_arguments])
 
     with pytest.raises(SystemExit, match="2"):
         main.parse_args()
@@ -86,7 +130,14 @@ def test__parse_args__partial_batch_does_not_fall_back_to_backlog(monkeypatch, c
     assert "Batch Processing requires --modality and --batch-name-from-vendor" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("dry_run", [pytest.param("true", id="dry_run"), pytest.param("false", id="submit")])
+@pytest.mark.parametrize(
+    "common_arguments, dry_run",
+    [
+        pytest.param(["--dry-run", "true"], True, id="dry_run"),
+        pytest.param(["--dry-run", "false"], False, id="submit"),
+        pytest.param(["--audit", "false", "--batch-processing", "false"], False, id="batch_options_disabled"),
+    ],
+)
 @pytest.mark.parametrize(
     "arguments, source, loader_arguments, row_count",
     [
@@ -116,24 +167,13 @@ def test__parse_args__partial_batch_does_not_fall_back_to_backlog(monkeypatch, c
     ],
 )
 def test__main__backlog_uses_common_parameters(
-    monkeypatch, workflow, arguments, source, loader_arguments, row_count, dry_run
+    monkeypatch, workflow, arguments, source, loader_arguments, row_count, common_arguments, dry_run
 ):
     loaders, manifest = workflow
     monkeypatch.setattr(
         sys,
         "argv",
-        [
-            "ocs-submission",
-            *arguments,
-            "--audit",
-            "false",
-            "--batch-processing",
-            "false",
-            "--email",
-            EMAIL,
-            "--dry-run",
-            dry_run,
-        ],
+        ["ocs-submission", *arguments, "--email", EMAIL, *common_arguments],
     )
 
     main.main()
@@ -146,25 +186,52 @@ def test__main__backlog_uses_common_parameters(
     assert len(rows) == row_count
     assert rows["modality"].tolist() == ["MTX"] * row_count
     assert rows["notify_email"].tolist() == [EMAIL] * row_count
-    assert rows["dry_run"].tolist() == [dry_run == "true"] * row_count
+    assert rows["dry_run"].tolist() == [dry_run] * row_count
     assert rows["force_submission"].isna().all()
     main.send_audit_email.assert_not_called()
-    if dry_run == "true":
+    if dry_run:
         main.send_command_summary_email.assert_not_called()
     else:
         assert main.send_command_summary_email.call_args.kwargs["notify_email"] == EMAIL
 
 
-def test__main__batch_sends_audit_and_summary_after_submission(monkeypatch, workflow):
+@pytest.mark.parametrize(
+    "audit_arguments, align_status, postalign_status, audit_expected",
+    [
+        pytest.param([], "NOT COMPLETED", "NOT COMPLETED", True, id="alignment_default_audit"),
+        pytest.param(["--audit", "true"], "NOT COMPLETED", "NOT COMPLETED", True, id="alignment_audit_enabled"),
+        pytest.param(["--audit", "false"], "NOT COMPLETED", "NOT COMPLETED", False, id="alignment_audit_disabled"),
+        pytest.param([], "COMPLETED", "NOT COMPLETED", False, id="post_alignment_default_no_audit"),
+        pytest.param(["--audit", "true"], "COMPLETED", "NOT COMPLETED", True, id="post_alignment_audit_enabled"),
+        pytest.param(["--audit", "false"], "COMPLETED", "NOT COMPLETED", False, id="post_alignment_audit_disabled"),
+        pytest.param([], "COMPLETED", "COMPLETED", False, id="no_submission_default_no_audit"),
+        pytest.param(["--audit", "true"], "COMPLETED", "COMPLETED", True, id="audit_requested_without_submission"),
+        pytest.param(["--audit", "false"], "COMPLETED", "COMPLETED", False, id="no_submission_audit_disabled"),
+    ],
+)
+def test__main__batch_audit_follows_submission_and_flag(
+    monkeypatch, workflow, audit_arguments, align_status, postalign_status, audit_expected
+):
+    loaders, manifest = workflow
+    loaders["batch"].return_value.loc[:, "align_status"] = align_status
+    loaders["batch"].return_value.loc[:, "postalign_status"] = postalign_status
     monkeypatch.setattr(
         sys,
         "argv",
-        f"ocs-submission --modality MTX --batch-name-from-vendor MTX-32013 --audit true --email {EMAIL}".split(),
+        f"ocs-submission --modality MTX --batch-name-from-vendor MTX-32013 --email {EMAIL}".split() + audit_arguments,
     )
 
     main.main()
 
-    main.send_audit_email.assert_called_once_with("MTX-32013", EMAIL)
+    rows = pd.read_json(manifest)
+    assert rows["align_should_execute"].tolist() == [align_status == "NOT COMPLETED"]
+    assert rows["postalign_should_execute"].tolist() == [
+        align_status == "COMPLETED" and postalign_status == "NOT COMPLETED"
+    ]
+    if audit_expected:
+        main.send_audit_email.assert_called_once_with("MTX-32013", EMAIL)
+    else:
+        main.send_audit_email.assert_not_called()
     main.send_command_summary_email.assert_called_once()
 
 

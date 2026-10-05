@@ -1,7 +1,5 @@
 """Email summaries after command execution."""
 
-from __future__ import annotations
-
 import logging
 import os
 from datetime import datetime
@@ -143,12 +141,11 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
     ocs_job_commands_df: The post-execution dataframe with align and postalign columns.
     notify_email: The recipient email address; an empty value is a no-op.
     """
-    # Nothing to report without a recipient or FASTQ samples.
     if not notify_email or ocs_job_commands_df.empty:
         return
 
-    success_list: list[tuple[str, dict]] = list()
-    failure_list: list[tuple[str, dict]] = list()
+    success_list: list[tuple[str, dict]] = []
+    failure_list: list[tuple[str, dict]] = []
     for fastq_record in ocs_job_commands_df.itertuples(index=False):
         if fastq_record.dry_run:
             continue
@@ -163,7 +160,6 @@ def send_command_summary_email(ocs_job_commands_df: pd.DataFrame, notify_email: 
 
     unconfigured_fastq_names = unconfigured_library_prep_fastq_names(ocs_job_commands_df)
 
-    # Nothing to send when no jobs ran and no library preps need configuration.
     if not (success_list or failure_list or unconfigured_fastq_names):
         return
 
@@ -216,7 +212,7 @@ def send_audit_email(batch_name_from_vendor: str, notify_email: str) -> None:
     Run the LIMS audit for a batch and send a summary with CSV attachments.
 
     Parameters:
-    batch_name_from_vendor: The vendor batch name to audit.
+    batch_name_from_vendor: The batch name from vendor to audit.
     notify_email: The recipient email address; an empty value is a no-op.
     """
     if not notify_email:

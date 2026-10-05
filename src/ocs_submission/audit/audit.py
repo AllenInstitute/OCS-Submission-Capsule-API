@@ -161,13 +161,13 @@ class MTXAuditor(Auditor):
 
 def run_audit(batch_name_from_vendor: str) -> tuple[pd.DataFrame, pd.DataFrame, str]:
     """
-    Load LIMS data for a vendor batch and build the missing-data report.
+    Load LIMS data using the batch name from vendor and build the missing-data report.
 
     Parameters:
-    batch_name_from_vendor: A string naming the vendor batch to audit.
+    batch_name_from_vendor: The batch name from vendor to audit.
 
     Returns:
-    Return ``(lims_data, report, modality)`` for the vendor batch.
+    Return ``(lims_data, report, modality)`` for the batch name from vendor.
     """
     prefix = batch_name_from_vendor.split("-")[0][:3]
 
