@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
@@ -24,7 +22,7 @@ EXPECTED_ALIGNMENT_COMMAND_ARGS = [
     "--reference-names",
     "mouse_mtx_ref",
     "--load-names",
-    "LOAD_1",
+    "3492_A01",
     "--notify",
     EMAIL,
 ]
@@ -36,7 +34,7 @@ EXPECTED_POSTALIGN_COMMAND_ARGS = [
     "--asset-name",
     "10x_multiome_qc",
     "--load-names",
-    "LOAD_1",
+    "3492_A01",
 ]
 
 
@@ -62,7 +60,7 @@ def _command_config(
 
 
 def _expected_manifest_row(
-    fastq_name: str = "NY-MX22068-2",
+    fastq_name: str = "NW-MX32013-2",
     align_should_execute: bool = False,
     align_library_prep_unconfigured: bool = False,
     align_command_args: list[str] | None = None,
@@ -74,11 +72,11 @@ def _expected_manifest_row(
 ) -> dict:
     return {
         "fastq_name": fastq_name,
-        "study_set": "StudyA",
-        "load_name": "LOAD_1",
-        "library_prep_method_name": "10xRSeq_Mult",
+        "study_set": "MG_MethDev+MultiomeGEMX_pilot",
+        "load_name": "3492_A01",
+        "library_prep_method_name": "10xMultX_GEX",
         "organism_common_name": "mouse",
-        "batch_name_from_vendor": "MTX-22068",
+        "batch_name_from_vendor": "MTX-32013",
         "modality": "MTX",
         "ingest_status": "INGEST_COMPLETE",
         "align_status": "NOT COMPLETED",
@@ -121,7 +119,6 @@ def _assert_job_not_scheduled(result: dict, stage_prefix: str) -> None:
     ],
 )
 def test_select_command_config_returns_first_matching_config(config, stage, command_config_field):
-    """When two command templates match a fastq sample, check that it uses the first template."""
     config["workflows"]["MTX"][command_config_field] = [
         _command_config("first", ["10xRSeq_Mult"]),
         _command_config("second", ["10xRSeq_Mult"]),
@@ -139,7 +136,6 @@ def test_select_command_config_returns_first_matching_config(config, stage, comm
 
 
 def test_select_command_config_matches_any_organism_when_organisms_is_omitted(config):
-    """When a command template has no organism list, check that it works for any fastq sample organism."""
     selected = select_command_config(
         config=config,
         modality="MTX",
@@ -152,7 +148,6 @@ def test_select_command_config_matches_any_organism_when_organisms_is_omitted(co
 
 
 def test_select_command_config_skips_configs_restricted_to_other_organisms(config):
-    """When choosing a command template, check that a fastq sample skips templates for other organisms."""
     config["workflows"]["MTX"]["post_alignment_command_configs"] = [
         _command_config("human", ["10xRSeq_Mult"], organisms=["human"]),
         _command_config("mouse", ["10xRSeq_Mult"], organisms=["mouse"]),
@@ -177,7 +172,6 @@ def test_select_command_config_skips_configs_restricted_to_other_organisms(confi
     ],
 )
 def test_select_command_config_returns_none_for_unlisted_library_prep(config, stage):
-    """When a fastq sample library prep is not configured, check that it has no command template."""
     selected = select_command_config(
         config=config,
         modality="MTX",
@@ -191,7 +185,6 @@ def test_select_command_config_returns_none_for_unlisted_library_prep(config, st
 
 @pytest.mark.parametrize("missing_field", ["match", "library_preps"])
 def test_select_command_config_reports_missing_library_preps_config(config, missing_field):
-    """When a command template has no library preps, check that it raises a configuration error."""
     command_config = config["workflows"]["MTX"]["alignment_command_configs"][0]
     if missing_field == "match":
         del command_config["match"]
@@ -209,7 +202,6 @@ def test_select_command_config_reports_missing_library_preps_config(config, miss
 
 
 def test_select_post_alignment_config_rejects_unmatched_organism(config):
-    """When a fastq sample library prep has no template for its organism, check that it raises an error."""
     config["workflows"]["MTX"]["post_alignment_command_configs"] = [
         _command_config("mouse", ["10xRSeq_Mult"], organisms=["mouse"])
     ]
@@ -225,13 +217,12 @@ def test_select_post_alignment_config_rejects_unmatched_organism(config):
 
 
 def test_build_ocs_command_args_renders_template_values(config, make_fastq_record):
-    """When building a command, check that a fastq sample fills its reference, load name, email, and chemistry values."""
     template = {
         **config["workflows"]["MTX"]["alignment_command_configs"][0],
         "arguments": config["workflows"]["MTX"]["alignment_command_configs"][0]["arguments"]
         + [{"flag": "--addopts", "value": "--chemistry {chemistry}"}],
     }
-    record = make_fastq_record(load_name="LOAD_1", library_prep_method_name="10xRSeq_Mult")
+    record = make_fastq_record(library_prep_method_name="10xRSeq_Mult")
 
     command_args, spacing = build_ocs_command_args(
         config=config,
@@ -246,9 +237,8 @@ def test_build_ocs_command_args_renders_template_values(config, make_fastq_recor
 
 
 def test_build_ocs_command_args_uses_fastq_name_for_rtx_batch_processing(config, make_fastq_record):
-    """When RTX batch processing is enabled, check that the complete load argument is replaced."""
     template = config["workflows"]["MTX"]["alignment_command_configs"][0]
-    record = make_fastq_record(fastq_name="FASTQ_1", load_name="LOAD_1")
+    record = make_fastq_record()
 
     command_args, _ = build_ocs_command_args(
         config=config,
@@ -260,11 +250,10 @@ def test_build_ocs_command_args_uses_fastq_name_for_rtx_batch_processing(config,
     )
 
     assert "--load-names" not in command_args
-    assert command_args[command_args.index("--fastq-names") + 1] == "FASTQ_1"
+    assert command_args[command_args.index("--fastq-names") + 1] == "NW-MX32013-2"
 
 
 def test_build_ocs_command_args_renders_probe_set_execution_vcpus_and_valueless_flags(config, make_fastq_record):
-    """When building a command, check that it includes the probe set, CPU count, and a flag with no value."""
     template = _command_config(
         name="cellflex",
         library_preps=["10xV4_FX16"],
@@ -299,7 +288,6 @@ def test_build_ocs_command_args_renders_probe_set_execution_vcpus_and_valueless_
 
 
 def test_build_ocs_command_args_uses_shared_organism_probe_set(config, make_fastq_record):
-    """When an organism has one shared probe set, check that its fastq sample uses that probe set."""
     config["probe_sets_by_organism"]["human"] = "human_probe_set"
     template = _command_config(
         name="cellflex",
@@ -324,7 +312,6 @@ def test_build_ocs_command_args_uses_shared_organism_probe_set(config, make_fast
 
 
 def test_build_ocs_command_args_uses_empty_values_for_unknown_chemistry_and_probe_set(config, make_fastq_record):
-    """When chemistry and a probe set are not configured, check that the command uses empty values."""
     template = {
         **config["workflows"]["MTX"]["alignment_command_configs"][0],
         "arguments": [
@@ -346,7 +333,6 @@ def test_build_ocs_command_args_uses_empty_values_for_unknown_chemistry_and_prob
 
 
 def test_build_ocs_command_args_uses_all_reference_fallback(config, make_fastq_record):
-    """When a fastq sample modality has no reference, check that it uses the `all` reference."""
     record = make_fastq_record(organism_common_name="human")
     template = config["workflows"]["MTX"]["alignment_command_configs"][0]
 
@@ -374,7 +360,6 @@ def test_build_ocs_command_args_uses_library_prep_specific_reference(
     library_prep_method_name,
     expected_reference_name,
 ):
-    """When references are mapped by library prep, check that a fastq sample uses its library prep reference."""
     config["references"]["mouse"]["MTX"] = {
         "library_preps": {
             "10xRSeq_Mult": "mouse_mtx_ref",
@@ -396,7 +381,6 @@ def test_build_ocs_command_args_uses_library_prep_specific_reference(
 
 
 def test_build_ocs_command_args_requires_library_prep_specific_reference(config, make_fastq_record):
-    """When a fastq sample library prep has no reference, check that it raises an error."""
     config["references"]["mouse"]["MTX"] = {
         "library_preps": {
             "another_prep": "mouse_other_ref",
@@ -419,7 +403,6 @@ def test_build_ocs_command_args_requires_library_prep_specific_reference(config,
 
 
 def test_build_ocs_command_args_requires_valid_library_prep_reference_mapping(config, make_fastq_record):
-    """When a reference configuration is invalid, check that building the command raises an error."""
     config["references"]["mouse"]["MTX"] = {}
     record = make_fastq_record(library_prep_method_name="10xRSeq_Mult")
     template = config["workflows"]["MTX"]["alignment_command_configs"][0]
@@ -435,7 +418,6 @@ def test_build_ocs_command_args_requires_valid_library_prep_reference_mapping(co
 
 
 def test_build_ocs_command_args_requires_matching_reference(config, make_fastq_record):
-    """When a fastq sample modality has no reference, check that building the command raises an error."""
     record = make_fastq_record(organism_common_name="mouse")
     template = config["workflows"]["MTX"]["alignment_command_configs"][0]
 
@@ -450,7 +432,6 @@ def test_build_ocs_command_args_requires_matching_reference(config, make_fastq_r
 
 
 def test_build_ocs_command_args_requires_known_organism_reference(config, make_fastq_record):
-    """When a fastq sample organism has no reference configuration, check that building the command raises an error."""
     record = make_fastq_record(organism_common_name="rat")
     template = config["workflows"]["MTX"]["alignment_command_configs"][0]
 
@@ -483,7 +464,6 @@ def test_alignment_submission_decision(
     force_submission,
     should_execute,
 ):
-    """When building an alignment submission command, check that the fastq sample ingest is complete and alignment is not complete or running."""
     record = make_fastq_record(ingest_status=ingest_status, align_status=align_status)
 
     result = build_alignment_job_command_record(
@@ -504,7 +484,6 @@ def test_alignment_submission_decision(
 
 
 def test_alignment_skips_unconfigured_library_prep(config, make_fastq_record):
-    """When alignment is needed but a fastq sample library prep has no command, check that it is not submitted."""
     record = make_fastq_record(library_prep_method_name="unsupported_prep")
 
     result = build_alignment_job_command_record(
@@ -541,7 +520,6 @@ def test_post_alignment_submission_decision(
     force_submission,
     should_execute,
 ):
-    """When building a post-alignment submission command, check that the fastq sample alignment is complete and post-alignment is not complete or running."""
     record = make_fastq_record(
         align_status=align_status,
         postalign_status=postalign_status,
@@ -566,7 +544,6 @@ def test_post_alignment_submission_decision(
 
 
 def test_post_alignment_skips_unconfigured_library_prep(config, make_fastq_record):
-    """When post-alignment is needed but a fastq sample library prep has no command, check that it is not submitted."""
     record = make_fastq_record(
         align_status="COMPLETED",
         postalign_status="NOT COMPLETED",
@@ -603,7 +580,6 @@ def test_post_alignment_does_not_require_matching_library_prep_when_not_schedule
     postalign_status,
     alignment_should_execute,
 ):
-    """When post-alignment is not needed, check that a fastq sample with an unsupported library prep does not fail."""
     record = make_fastq_record(
         align_status=align_status,
         postalign_status=postalign_status,
@@ -624,7 +600,6 @@ def test_post_alignment_does_not_require_matching_library_prep_when_not_schedule
 
 
 def test_build_ocs_job_submission_command_allows_alignment_without_post_alignment_config(config, make_fastq_record):
-    """When a fastq sample library prep has only an alignment command, check that it gets no post-alignment command."""
     config["workflows"]["MTX"]["alignment_command_configs"][0]["match"]["library_preps"].append("align_only_prep")
     record = make_fastq_record(library_prep_method_name="align_only_prep")
 
@@ -637,8 +612,8 @@ def test_build_ocs_job_submission_command_allows_alignment_without_post_alignmen
         dry_run=True,
     )
 
-    assert bool(result.at[0, "align_should_execute"]) is True
-    assert bool(result.at[0, "postalign_should_execute"]) is False
+    assert result.at[0, "align_should_execute"]
+    assert not result.at[0, "postalign_should_execute"]
     assert result.at[0, "align_command_args"] == EXPECTED_ALIGNMENT_COMMAND_ARGS
     assert result.at[0, "postalign_command_args"] is None
 
@@ -647,7 +622,6 @@ def test_build_ocs_job_submission_command_allows_forced_alignment_without_post_a
     config,
     make_fastq_record,
 ):
-    """When alignment is forced for a fastq sample with no post-alignment command, check that only alignment is built."""
     config["workflows"]["MTX"]["alignment_command_configs"][0]["match"]["library_preps"].append("align_only_prep")
     record = make_fastq_record(
         align_status="COMPLETED",
@@ -664,14 +638,13 @@ def test_build_ocs_job_submission_command_allows_forced_alignment_without_post_a
         dry_run=True,
     )
 
-    assert bool(result.at[0, "align_should_execute"]) is True
-    assert bool(result.at[0, "postalign_should_execute"]) is False
+    assert result.at[0, "align_should_execute"]
+    assert not result.at[0, "postalign_should_execute"]
     assert result.at[0, "align_command_args"] == EXPECTED_ALIGNMENT_COMMAND_ARGS
     assert result.at[0, "postalign_command_args"] is None
 
 
 def test_build_ocs_job_submission_command_returns_expected_manifest_row(config, make_fastq_record):
-    """When building a submission manifest for one fastq sample, check that the row has its alignment command and metadata."""
     record = make_fastq_record(organism_common_name="mouse")
 
     result = build_ocs_job_submission_command(
@@ -698,7 +671,6 @@ def test_build_ocs_job_submission_command_returns_expected_manifest_row(config, 
 
 
 def test_build_ocs_job_submission_command_can_schedule_post_alignment(config, make_fastq_record):
-    """When a fastq sample alignment is complete, check that its manifest row has a post-alignment command."""
     record = make_fastq_record(align_status="COMPLETED", postalign_status="NOT COMPLETED")
 
     result = build_ocs_job_submission_command(
@@ -728,7 +700,6 @@ def test_build_ocs_job_submission_command_can_schedule_post_alignment(config, ma
 
 
 def test_build_ocs_job_submission_command_handles_mixed_rows(config, make_fastq_record):
-    """When building one manifest for two fastq samples, check that it can contain alignment and post-alignment commands."""
     records = [
         make_fastq_record(fastq_name="needs-align"),
         make_fastq_record(
@@ -772,7 +743,6 @@ def test_build_ocs_job_submission_command_handles_mixed_rows(config, make_fastq_
 
 
 def test_build_ocs_job_submission_command_builds_one_forced_alignment_per_load(config, make_fastq_record):
-    """When alignment is forced for load inputs, check that each completed load gets one command."""
     records = [
         make_fastq_record(fastq_name="NW-FX38012-1", load_name="3592-10_A01", align_status="COMPLETED"),
         make_fastq_record(fastq_name="NW-FX38025-2", load_name="3687-26_A01", align_status="COMPLETED"),
@@ -806,25 +776,11 @@ def test_build_ocs_job_submission_command_builds_one_forced_alignment_per_load(c
     ]
 
 
-def test_build_ocs_job_submission_command_uses_matching_modality_record_for_load(config, make_fastq_record):
-    """When a multiome load has ATAC and GEX FASTQs, check that MTX metadata controls its command."""
-    records = [
-        make_fastq_record(
-            fastq_name="NW-AT36021-10",
-            load_name="3796_A01",
-            library_prep_method_name="10xMultX_ATAC",
-            batch_name_from_vendor="ATX-36021",
-        ),
-        make_fastq_record(
-            fastq_name="NW-MX32021-10",
-            load_name="3796_A01",
-            library_prep_method_name="10xMultX_GEX",
-            batch_name_from_vendor="MTX-32021",
-        ),
-    ]
+def test_build_ocs_job_submission_command_uses_matching_modality_record_for_load(config, fastq_records):
+    records = fastq_records[fastq_records["load_name"] == "3796_A01"]
 
     result = build_ocs_job_submission_command(
-        fastq_records_df=pd.DataFrame([vars(record) for record in records]),
+        fastq_records_df=records,
         modality="MTX",
         config=config,
         email=EMAIL,
@@ -837,8 +793,8 @@ def test_build_ocs_job_submission_command_uses_matching_modality_record_for_load
     assert result.at[0, "fastq_name"] == "NW-MX32021-10 | NW-AT36021-10"
     assert result.at[0, "library_prep_method_name"] == "10xMultX_GEX | 10xMultX_ATAC"
     assert result.at[0, "batch_name_from_vendor"] == "MTX-32021"
-    assert bool(result.at[0, "align_should_execute"]) is True
-    assert bool(result.at[0, "align_library_prep_unconfigured"]) is False
+    assert result.at[0, "align_should_execute"]
+    assert not result.at[0, "align_library_prep_unconfigured"]
     assert "--load-names" in result.at[0, "align_command_args"]
 
 
@@ -846,7 +802,6 @@ def test_build_ocs_job_submission_command_requires_every_fastq_in_load_to_comple
     config,
     make_fastq_record,
 ):
-    """When one FASTQ has not completed ingest, check that forced alignment does not submit its load."""
     records = [
         make_fastq_record(fastq_name="completed", ingest_status="COMPLETED", align_status="COMPLETED"),
         make_fastq_record(fastq_name="incomplete", ingest_status="NOT COMPLETED", align_status="COMPLETED"),
@@ -869,7 +824,6 @@ def test_build_ocs_job_submission_command_requires_every_fastq_in_load_to_comple
     config,
     make_fastq_record,
 ):
-    """When one FASTQ has not completed alignment, check that post-alignment does not submit its load."""
     records = [
         make_fastq_record(
             fastq_name="blocked-completed",
@@ -915,7 +869,6 @@ def test_build_ocs_job_submission_command_requires_every_fastq_in_load_to_comple
 
 
 def test_build_ocs_job_submission_command_flags_unconfigured_library_prep(config, make_fastq_record):
-    """When a fastq sample library prep is not configured, check that it is skipped and returned in the skipped list."""
     records = [
         make_fastq_record(fastq_name="configured"),
         make_fastq_record(fastq_name="unconfigured", library_prep_method_name="unsupported_prep"),
@@ -930,15 +883,14 @@ def test_build_ocs_job_submission_command_flags_unconfigured_library_prep(config
         dry_run=True,
     )
 
-    assert bool(result.at[0, "align_should_execute"]) is True
-    assert bool(result.at[0, "align_library_prep_unconfigured"]) is False
-    assert bool(result.at[1, "align_should_execute"]) is False
-    assert bool(result.at[1, "align_library_prep_unconfigured"]) is True
+    assert result.at[0, "align_should_execute"]
+    assert not result.at[0, "align_library_prep_unconfigured"]
+    assert not result.at[1, "align_should_execute"]
+    assert result.at[1, "align_library_prep_unconfigured"]
     assert unconfigured_library_prep_fastq_names(result) == ["unconfigured"]
 
 
 def test_unconfigured_library_prep_fastq_names_empty_when_all_configured(config, make_fastq_record):
-    """When every fastq sample library prep has a command, check that no samples are returned as skipped."""
     result = build_ocs_job_submission_command(
         fastq_records_df=pd.DataFrame([vars(make_fastq_record())]),
         modality="MTX",
@@ -951,24 +903,9 @@ def test_unconfigured_library_prep_fastq_names_empty_when_all_configured(config,
     assert unconfigured_library_prep_fastq_names(result) == []
 
 
-def test_build_ocs_job_submission_command_returns_empty_manifest_with_schema(config):
-    """When there are no fastq samples, check that the manifest is empty and has the normal output columns."""
-    empty_fastq_records = pd.DataFrame(
-        columns=[
-            "fastq_name",
-            "study_set",
-            "load_name",
-            "library_prep_method_name",
-            "organism_common_name",
-            "batch_name_from_vendor",
-            "ingest_status",
-            "align_status",
-            "postalign_status",
-        ]
-    )
-
+def test_build_ocs_job_submission_command_returns_empty_manifest_with_schema(config, fastq_records):
     result = build_ocs_job_submission_command(
-        fastq_records_df=empty_fastq_records,
+        fastq_records_df=fastq_records.iloc[:0],
         modality="MTX",
         config=config,
         email=EMAIL,

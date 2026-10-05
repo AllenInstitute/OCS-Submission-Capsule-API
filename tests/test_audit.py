@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import create_autospec, patch
 
 import pandas as pd
 import pytest
@@ -10,7 +10,7 @@ from ocs_submission.audit import audit
     "batch_name, expected_sql_marker, expected_auditor, expected_modality",
     [
         pytest.param(
-            "MTX-22068",
+            "MTX-32013",
             "JOIN rna_amplification_inputs",
             audit.MTXAuditor,
             "MTX",
@@ -38,21 +38,20 @@ def test__run_audit__uses_modality_query_and_rules(
     expected_auditor,
     expected_modality,
 ):
-    """When auditing an MTX, RTX, or RFX batch, check that it uses the matching LIMS query and rules."""
-    cursor = MagicMock()
+    cursor = create_autospec(audit.psycopg2.extensions.cursor, instance=True)
     cursor.fetchall.return_value = [(batch_name,)]
     cursor.description = [("batch_vendor_name",)]
 
-    connection = MagicMock()
+    connection = create_autospec(audit.psycopg2.extensions.connection, instance=True)
     connection.cursor.return_value.__enter__.return_value = cursor
 
     expected_report = pd.DataFrame({"result": ["Present"]})
     with (
-        patch.object(audit.psycopg2, "connect", return_value=connection),
-        patch.object(audit, "lims_database_username", return_value="user"),
-        patch.object(audit, "lims_database_password", return_value="password"),
-        patch.object(audit.MTXAuditor, "generate_report", return_value=expected_report) as mtx_report,
-        patch.object(audit.RTXAuditor, "generate_report", return_value=expected_report) as rtx_report,
+        patch.object(audit.psycopg2, "connect", autospec=True, return_value=connection),
+        patch.object(audit, "lims_database_username", autospec=True, return_value="user"),
+        patch.object(audit, "lims_database_password", autospec=True, return_value="password"),
+        patch.object(audit.MTXAuditor, "generate_report", autospec=True, return_value=expected_report) as mtx_report,
+        patch.object(audit.RTXAuditor, "generate_report", autospec=True, return_value=expected_report) as rtx_report,
     ):
         lims_data, report, modality = audit.run_audit(batch_name)
 

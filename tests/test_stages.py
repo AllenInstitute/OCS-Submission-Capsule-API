@@ -1,10 +1,7 @@
-from __future__ import annotations
-
 from ocs_submission.workflow.stages import Stage
 
 
 def test_stage_vocabulary():
-    """When listing pipeline stages, check the OCS result name and status column for each stage."""
     assert [
         (
             stage.ocs_stage_name,

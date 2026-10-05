@@ -1,0 +1,4 @@
+fastq_name,study_set,load_name,library_prep_method_name,organism_common_name,batch_name_from_vendor,ingest_status,align_status,postalign_status
+NW-MX32013-2,MG_MethDev+MultiomeGEMX_pilot,3492_A01,10xMultX_GEX,mouse,MTX-32013,INGEST_COMPLETE,NOT COMPLETED,NOT COMPLETED
+NW-AT36021-10,Marmoset_Dev,3796_A01,10xMultX_ATAC,common-marmoset,ATX-36021,COMPLETED,NOT COMPLETED,NOT COMPLETED
+NW-MX32021-10,Marmoset_Dev,3796_A01,10xMultX_GEX,common-marmoset,MTX-32021,COMPLETED,NOT COMPLETED,NOT COMPLETED

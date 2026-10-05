@@ -1,29 +1,26 @@
-from __future__ import annotations
-
+from collections.abc import Callable
+from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable
+from typing import Any
 
+import pandas as pd
 import pytest
 
 
 @pytest.fixture
-def make_fastq_record() -> Callable[..., SimpleNamespace]:
-    def _make(**overrides: Any) -> SimpleNamespace:
-        defaults: dict[str, Any] = {
-            "fastq_name": "NY-MX22068-2",
-            "study_set": "StudyA",
-            "load_name": "LOAD_1",
-            "library_prep_method_name": "10xRSeq_Mult",
-            "organism_common_name": "mouse",
-            "batch_name_from_vendor": "MTX-22068",
-            "ingest_status": "INGEST_COMPLETE",
-            "align_status": "NOT COMPLETED",
-            "postalign_status": "NOT COMPLETED",
-        }
-        defaults.update(overrides)
-        return SimpleNamespace(**defaults)
+def fastq_records() -> pd.DataFrame:
+    # Saved manifest record plus the existing multiome example.
+    return pd.read_csv(Path(__file__).parent / "fixtures" / "fastq_records.csv")
 
-    return _make
+
+@pytest.fixture
+def make_fastq_record(fastq_records) -> Callable[..., SimpleNamespace]:
+    defaults = fastq_records.iloc[0].to_dict()
+
+    def make_record(**overrides: object) -> SimpleNamespace:
+        return SimpleNamespace(**(defaults | overrides))
+
+    return make_record
 
 
 @pytest.fixture
@@ -32,6 +29,7 @@ def config() -> dict[str, Any]:
         "references": {
             "mouse": {"MTX": "mouse_mtx_ref", "RTX": "mouse_rtx_ref"},
             "human": {"all": "human_all_ref"},
+            "common-marmoset": {"MTX": "marmoset_mtx_ref"},
         },
         "probe_sets_by_organism": {
             "mouse": {"10xV4_FX16": "mouse_probe_set"},
