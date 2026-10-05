@@ -1,8 +1,4 @@
-"""Submit OCS alignment and post-alignment jobs.
-
-Loads FASTQ status, builds alignment and post-alignment commands from configuration templates,
-optionally submits jobs to OCS, and sends email summaries.
-"""
+"""Run the OCS submission workflow for fastq samples."""
 
 import argparse
 import logging
@@ -17,6 +13,8 @@ from .commands.builder import (
 )
 from .config.loader import CONFIG_PATH, load_jsonc_config
 from .inputs.fastq_records import (
+    MODALITIES,
+    infer_modality,
     load_fastq_records_df_from_batch,
     load_fastq_records_df_from_exporter,
     load_fastq_records_df_from_fastq_names,
@@ -38,100 +36,107 @@ DATA_MANIFEST_PATH = os.path.join(OUTPUT_DIR, "ocs_job_commands_manifest.json")
 
 
 def parse_args() -> argparse.Namespace:
-    """
-    Return the submission script's command-line arguments.
+    """Read the parameters for the OCS submission workflow.
 
-    Returns:
-    Return an ``argparse.Namespace`` with the command-line arguments.
+    Batch Processing takes precedence over Backlog or Resequencing Runs and
+    requires both modality and batch name from vendor. For backlog runs, use
+    the export file from OCS Tracker, load names, or fastq sample names, in that
+    order. Email and dry run work with either section.
     """
     parser = argparse.ArgumentParser(description="OCS Submission Capsule")
-    parser.add_argument("--ocs-tracker-exporter", help="Export file from OCS Tracker")
-    parser.add_argument(
+    batch = parser.add_argument_group("Batch Processing")
+    batch.add_argument(
         "--modality",
-        choices=["RTX", "MTX", "RFX"],
-        required=True,
-        help="Modality type (RTX/MTX/RFX)",
+        choices=MODALITIES,
+        help="Modality type (RTX/MTX/RFX), required for batch processing",
     )
-    parser.add_argument(
+    batch.add_argument(
         "--batch-name-from-vendor",
-        help="Batch name from vendor for batch information retrieval",
+        help="Batch name from vendor to look up on OCS",
     )
-    parser.add_argument(
-        "--fastq-names",
-        nargs="+",
-        help="One or more FASTQ names, separated by spaces.",
+    batch.add_argument(
+        "--batch-processing",
+        choices=("true", "false"),
+        default="false",
+        help=(
+            "Use fastq sample names instead of load names for RTX/RFX alignment and post-alignment commands "
+            "(true/false, default: false)"
+        ),
     )
-    parser.add_argument(
-        "--load-names",
-        nargs="+",
-        help="One or more load names, separated by spaces.",
-    )
-    parser.add_argument(
+    batch.add_argument(
         "--force-submission",
         choices=["alignment", "post-alignment"],
         help="Submit alignment or post-alignment regardless of its current status",
     )
-    parser.add_argument(
-        "--email",
-        "-e",
-        help="Email address for OCS job notifications and run summary emails",
+    batch.add_argument(
+        "--audit",
+        choices=("true", "false"),
+        default="false",
+        help="Audit each batch name from vendor after processing, except during a dry run (true/false, default: false)",
     )
-    parser.add_argument(
+    backlog = parser.add_argument_group("Backlog or Resequencing Runs")
+    backlog.add_argument("--ocs-tracker-exporter", help="Export file from OCS Tracker")
+    backlog.add_argument("--fastq-names", nargs="+", help="One or more fastq sample names, separated by spaces.")
+    backlog.add_argument("--load-names", nargs="+", help="One or more load names, separated by spaces.")
+
+    common = parser.add_argument_group("Common Parameters")
+    common.add_argument("--email", "-e", help="Email address for OCS job notifications and run summary emails")
+    common.add_argument(
         "--dry-run",
         choices=("true", "false"),
         default="false",
         help="Print commands without executing them (true/false, default: false)",
     )
     parser.add_argument(
-        "--audit",
-        choices=("true", "false"),
-        default="false",
-        help="Run the LIMS audit after each alignment command (true/false, default: false)",
-    )
-    parser.add_argument(
-        "--batch-processing",
-        choices=("true", "false"),
-        default="false",
-        help=(
-            "Use FASTQ names instead of load names for RTX/RFX alignment and post-alignment commands "
-            "(true/false, default: false)"
-        ),
-    )
-    parser.add_argument(
         "--config",
         default=CONFIG_PATH,
         help=f"Path to a JSONC config file (default: {CONFIG_PATH})",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    batch_selected = bool(
+        args.modality
+        or args.batch_name_from_vendor
+        or args.force_submission
+        or args.audit == "true"
+        or args.batch_processing == "true"
+    )
+    if batch_selected:
+        if args.ocs_tracker_exporter or args.fastq_names or args.load_names:
+            logger.info(
+                "Batch Processing selected. Ignoring the export file from OCS Tracker, "
+                "fastq sample names, and load names."
+            )
+        args.ocs_tracker_exporter = args.fastq_names = args.load_names = None
+        if not args.modality or not args.batch_name_from_vendor:
+            parser.error("Batch Processing requires --modality and --batch-name-from-vendor.")
+    elif args.ocs_tracker_exporter:
+        args.fastq_names = args.load_names = None
+    elif args.load_names:
+        args.fastq_names = None
+    elif not args.fastq_names:
+        parser.error("Provide --ocs-tracker-exporter, --load-names, or --fastq-names for a backlog run.")
+    return args
 
 
 def main() -> None:
-    """
-    Run the OCS submission workflow.
+    """Run the OCS submission workflow.
 
-    This workflow loads FASTQ records from one input source, builds and submits or
-    dry-runs alignment and post-alignment commands, writes a JSON manifest, and sends
-    summary and audit emails.
+    This workflow loads fastq samples from one input source, builds and submits
+    or dry-runs alignment and post-alignment commands, and writes a JSON manifest.
+    Summary emails are sent when there is something to report and an email
+    address is provided. Audit emails are sent when audit is enabled and an
+    email address is provided. Dry runs do not submit jobs or send either email.
     """
     args = parse_args()
 
-    if args.batch_name_from_vendor and (args.fastq_names or args.load_names):
-        raise ValueError("Cannot specify --batch-name-from-vendor with --fastq-names or --load-names.")
-
     if args.fastq_names:
         args.fastq_names = [
-            fastq_name
-            for raw_token in args.fastq_names
-            for fastq_name in re.split(r"[,\s]+", raw_token.strip())
-            if fastq_name
+            fastq_name for raw_token in args.fastq_names for fastq_name in re.split(r"[,\s]+", raw_token) if fastq_name
         ]
 
     if args.load_names:
         args.load_names = [
-            load_name
-            for raw_token in args.load_names
-            for load_name in re.split(r"[,\s]+", raw_token.strip())
-            if load_name
+            load_name for raw_token in args.load_names for load_name in re.split(r"[,\s]+", raw_token) if load_name
         ]
 
     dry_run = args.dry_run == "true"
@@ -140,19 +145,15 @@ def main() -> None:
 
     config = load_jsonc_config(args.config)
 
-    if args.ocs_tracker_exporter:
+    if args.batch_name_from_vendor:
+        fastq_records_df = load_fastq_records_df_from_batch(args.batch_name_from_vendor)
+    elif args.ocs_tracker_exporter:
         logger.info(f"Running OCS Submission using: {args.ocs_tracker_exporter}")
         fastq_records_df = load_fastq_records_df_from_exporter(args.ocs_tracker_exporter)
-    elif args.batch_name_from_vendor:
-        fastq_records_df = load_fastq_records_df_from_batch(args.batch_name_from_vendor)
     elif args.load_names:
-        fastq_records_df = load_fastq_records_df_from_load_names(args.load_names, args.modality)
-    elif args.fastq_names:
-        fastq_records_df = load_fastq_records_df_from_fastq_names(args.fastq_names)
+        fastq_records_df = load_fastq_records_df_from_load_names(args.load_names)
     else:
-        raise ValueError(
-            "Provide one of --ocs-tracker-exporter, --batch-name-from-vendor, --load-names, or --fastq-names."
-        )
+        fastq_records_df = load_fastq_records_df_from_fastq_names(args.fastq_names)
 
     if fastq_records_df.empty:
         logger.info(
@@ -161,12 +162,13 @@ def main() -> None:
         )
         return
 
+    modality = args.modality or infer_modality(fastq_records_df)
     status_summary_df = fastq_records_df.drop_duplicates("load_name") if args.load_names else fastq_records_df
     log_fastq_status_summaries(fastq_records_df=status_summary_df)
 
     ocs_job_commands_df = build_ocs_job_submission_command(
         fastq_records_df=fastq_records_df,
-        modality=args.modality,
+        modality=modality,
         config=config,
         email=args.email,
         force_submission=args.force_submission,
@@ -199,7 +201,7 @@ def main() -> None:
 
     logger.info("OCS Submission Completed.")
 
-    if args.audit == "true":
+    if args.audit == "true" and not dry_run:
         for batch_name in ocs_job_commands_df["batch_name_from_vendor"].dropna().unique():
             logger.info(f"Running AUDIT for batch name from vendor: {batch_name}")
             send_audit_email(batch_name, args.email)

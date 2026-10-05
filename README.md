@@ -7,7 +7,7 @@
 
 OCS Submission Capsule reads fastq sample metadata, checks OCS stage status, builds commands, and submits jobs through the `ocs` CLI.
 
-It supports daily runs and backfills. Each run writes a manifest with one row per fastq sample, or one row per sequencing load when `--load-names` is used. The manifest records command values, submission status, demand IDs, errors, and timestamps.
+It supports daily runs and backfills. Each run writes a manifest with one row per fastq sample, or one row per sequencing load when load names are the selected input source. The manifest records command values, submission status, demand IDs, errors, and timestamps.
 
 When OCS reaches the job limit, the capsule waits and checks the limit again before submitting the next command.
 
@@ -109,7 +109,7 @@ Run these commands from a Python 3.12+ environment with the `ocs` CLI on `PATH`.
 
 ## Workflow
 
-For each fastq sample or requested load, the capsule loads metadata, checks stage status, builds the next command, submits the command or prints it during a dry run, and writes the result to the manifest. After a non-dry run it can send a submission summary. When `--audit true` and `--email` are set, it audits each unique vendor batch in LIMS and emails the generated reports.
+For each fastq sample or requested load, the capsule loads metadata, checks stage status, builds the next command, submits the command or prints it during a dry run, and writes the result to the manifest. After a non-dry run it can send a submission summary. For batch processing, when `--audit true` and `--email` are set, it audits each unique vendor batch in LIMS and emails the generated reports. Dry runs skip both summary and audit emails, including LIMS queries and audit reports.
 ```
 Input (exporter CSV / batch name / load names / fastq sample names)
         │
@@ -144,6 +144,20 @@ Input (exporter CSV / batch name / load names / fastq sample names)
 
 ## Inputs
 
+### Parameter boundaries
+
+The CLI groups parameters into three sections:
+
+1. **Batch Processing:** `--modality`, `--batch-name-from-vendor`, `--batch-processing` (Use FASTQ Names), `--force-submission`, and `--audit`.
+2. **Backlog or Resequencing Runs:** `--ocs-tracker-exporter`, `--fastq-names`, and `--load-names`.
+3. **Common Parameters:** `--email` and `--dry-run` work with either mode. `--config` selects the command configuration for either mode.
+
+Any nonempty batch parameter or a batch toggle set to `true` selects Batch Processing. Both modality and vendor batch name are then required. Tracker, FASTQ name, and load name inputs are ignored, including their effect on command grouping. An incomplete batch configuration produces an error instead of falling back to backlog inputs. Toggles set to `false` do not select Batch Processing.
+
+Backlog runs omit all Batch Processing parameters. Modality is inferred from vendor-batch metadata. All records must belong to one modality, with ATX and MTX records treated as the same multiome modality. Missing or unknown vendor batches and mixed modalities produce an error before job submission. Submit different modalities in separate runs.
+
+Within backlog inputs, the existing priority is tracker export, then load names, then FASTQ names. Only the selected source affects execution. A tracker export accompanied by load names still produces one manifest row per FASTQ sample.
+
 Use one of the following input sources:
 
 ### OCS Tracker Export CSV
@@ -166,7 +180,6 @@ absent, the capsule looks it up from OCS using each fastq sample name.
 ```bash
 ocs-submission \
   --ocs-tracker-exporter /path/to/ocs_tracker_export.csv \
-  --modality RTX \
   --dry-run true
 ```
 
@@ -186,7 +199,6 @@ For load names, the capsule retrieves every fastq sample associated with each lo
 ```bash
 ocs-submission \
   --load-names 3796_A01 3796_A02 \
-  --modality MTX \
   --dry-run true
 ```
 
@@ -195,7 +207,6 @@ ocs-submission \
 ```bash
 ocs-submission \
   --fastq-names NY-MX22068-2 NY-MX22068-3 \
-  --modality MTX \
   --dry-run true
 ```
 
@@ -203,16 +214,16 @@ ocs-submission \
 
 | Option | Required | Description |
 |---|---|---|
-| `--modality` | Yes | Workflow modality: `RTX`, `MTX`, or `RFX` |
+| `--modality` | Batch mode | Workflow modality: `RTX`, `MTX`, or `RFX`; omit for backlog runs |
 | `--ocs-tracker-exporter` | No | Path to an OCS Tracker export CSV |
-| `--batch-name-from-vendor` | No | Batch Name From Vendor |
+| `--batch-name-from-vendor` | Batch mode | Batch Name From Vendor; takes precedence over backlog inputs |
 | `--load-names` | No | One or more sequencing load names; creates one command per load |
 | `--fastq-names` | No | One or more fastq sample names |
 | `--force-submission` | No | Force `alignment` or `post-alignment` regardless of its current status; alignment still requires completed ingest and post-alignment still requires completed alignment |
 | `--email`, `-e` | No | Email for OCS job notifications and run summary emails; required to generate and send audit reports |
-| `--dry-run` | No | `true` or `false` (default `false`) — log commands without executing |
-| `--audit` | No | `true` or `false` (default `false`) — audit each unique vendor batch after submission processing |
-| `--batch-processing` | No | `true` or `false` (default `false`) — use fastq sample names for RTX/RFX alignment and post-alignment commands |
+| `--dry-run` | No | `true` or `false` (default `false`) — log commands without submitting jobs or sending summary or audit emails |
+| `--audit` | No | Batch mode only: `true` or `false` (default `false`) — audit each unique vendor batch after submission processing, except during dry runs |
+| `--batch-processing` | No | Batch mode only: `true` or `false` (default `false`) — use fastq sample names for RTX/RFX alignment and post-alignment commands |
 | `--config` | No | Path to JSONC config; defaults to included `config.jsonc` |
 
 ## Configuration

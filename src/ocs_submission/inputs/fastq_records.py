@@ -1,4 +1,4 @@
-"""Build FASTQ record dataframes from exports or OCS queries and log stage summaries."""
+"""Load fastq sample metadata and stage statuses from OCS or the export file from OCS Tracker."""
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ from ..integrations.ocs_cli import get_latest_results, query_metadata
 from ..workflow.stages import JOB_STAGES, Stage
 
 logger = logging.getLogger(__name__)
+
+MODALITIES = ("RTX", "MTX", "RFX")
 
 FASTQ_RECORD_COLUMNS = [
     "fastq_name",
@@ -40,12 +42,17 @@ EXPORTER_COLUMN_ALIASES = {"Organism": ("Organism Common Name",)}
 
 
 def _normalize_exporter_column_name(column_name: str) -> str:
-    """Normalize capitalization and separators in an exporter column name."""
+    """Normalize capitalization and separators in a column name from the export file from OCS Tracker."""
     return " ".join(column_name.replace("_", " ").replace("-", " ").casefold().split())
 
 
 def _resolve_exporter_columns(column_names: list[str]) -> dict[str, str]:
-    """Map expected exporter columns to supplied names, allowing safe minor typos."""
+    """Match the expected column names in the export file from OCS Tracker.
+
+    Accept capitalization differences, separators, aliases, and clear minor
+    typos. Report missing or ambiguous columns rather than choosing a match.
+    ``Batch Name From Vendor`` can be omitted because it is looked up on OCS.
+    """
     resolved_columns: dict[str, str] = {}
     used_column_names: set[str] = set()
 
@@ -96,12 +103,16 @@ def _resolve_exporter_columns(column_names: list[str]) -> dict[str, str]:
 
 
 def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
-    """Load FASTQ records from an OCS Tracker export.
+    """Load fastq samples from the export file from OCS Tracker.
 
-    The OCS tracker export already has all the fields the rest of the pipeline expects,
-    so this helper mostly renames the CSV's columns to match ``FASTQ_RECORD_COLUMNS``.
-    When the export is missing ``Batch Name From Vendor``, that value is looked up on
-    OCS. Empty alignment and post-alignment statuses are treated as incomplete.
+    The export file from OCS Tracker contains the fields the rest of the pipeline
+    expects, so this helper renames the CSV's columns to match
+    ``FASTQ_RECORD_COLUMNS``. Column names can differ in capitalization or
+    separators, and clear minor typos are accepted.
+
+    When the export file is missing ``Batch Name From Vendor``, that value is
+    looked up on OCS for each fastq sample. Empty alignment and post-alignment
+    statuses are treated as incomplete.
     """
     fastq_records_df = pd.read_csv(exporter_path).dropna(how="all")
     fastq_records_df = fastq_records_df.replace(", ", "; ")
@@ -132,17 +143,26 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     return fastq_records_df
 
 
+def infer_modality(fastq_records_df: pd.DataFrame) -> str:
+    """Infer one modality from the batch name from vendor for each fastq sample.
+
+    ATX and MTX fastq samples both use the MTX workflow. Missing or unrecognized
+    batch names from vendor and mixed modalities stop the run before submission.
+    """
+    batch_names = fastq_records_df["batch_name_from_vendor"].astype("string")
+    modalities = batch_names.str.split("-", n=1).str[0].replace({"ATX": "MTX"})
+    if not modalities.isin(MODALITIES).all():
+        raise ValueError(
+            "Cannot infer modality: every fastq sample must have a batch name from vendor "
+            "starting with RTX, MTX, RFX, or ATX."
+        )
+    if modalities.nunique() != 1:
+        raise ValueError("Backlog runs require one modality. Submit each modality in a separate run.")
+    return modalities.iloc[0]
+
+
 def load_fastq_records_df_from_batch(batch_name_from_vendor: str) -> pd.DataFrame:
-    """
-    Build a dataframe for every sample in a vendor batch.
-
-    The dataframe has the columns in ``FASTQ_RECORD_COLUMNS`` and includes batch
-    metadata plus ingest, alignment, and post-alignment statuses.
-
-    Metadata for the whole batch is fetched in one ``query_metadata`` call. Then
-    ``check_all_fastq_stage_status`` fills in the ingest, alignment, and
-    post-alignment statuses.
-    """
+    """Load metadata and current stage statuses for fastq samples using the batch name from vendor."""
     fastq_records_df = query_metadata(batch_name_from_vendor=batch_name_from_vendor)
     fastq_records_df = check_all_fastq_stage_status(fastq_records_df=fastq_records_df)
 
@@ -150,23 +170,22 @@ def load_fastq_records_df_from_batch(batch_name_from_vendor: str) -> pd.DataFram
 
 
 def load_fastq_records_df_from_fastq_names(fastq_names: list[str]) -> pd.DataFrame:
-    """
-    Build a dataframe for every FASTQ name provided by the user.
-
-    The dataframe has the columns in ``FASTQ_RECORD_COLUMNS`` and includes FASTQ
-    metadata plus ingest, alignment, and post-alignment statuses.
-
-    Metadata is fetched with ``query_metadata``. Then ``check_all_fastq_stage_status``
-    fills in the ingest, alignment, and post-alignment statuses.
-    """
+    """Load metadata and current stage statuses for the requested fastq samples."""
     fastq_metadata_df = query_metadata(fastq_name_list=fastq_names)
     fastq_record_df = check_all_fastq_stage_status(fastq_records_df=fastq_metadata_df)
     return fastq_record_df[FASTQ_RECORD_COLUMNS]
 
 
-def load_fastq_records_df_from_load_names(load_names: list[str], modality: str) -> pd.DataFrame:
-    """Load each FASTQ in the requested loads and check status using the modality FASTQ."""
+def load_fastq_records_df_from_load_names(load_names: list[str], modality: str | None = None) -> pd.DataFrame:
+    """Load all fastq samples associated with the requested load names.
+
+    For each load, check status using the fastq sample whose batch name from
+    vendor matches the modality. If none matches, use the first fastq sample.
+    Apply those statuses to all fastq samples in the load. When modality is not
+    provided, infer it from the batch names from vendor.
+    """
     load_metadata_df = query_metadata(load_name_list=load_names)
+    modality = modality or infer_modality(load_metadata_df)
     status_record_indexes = []
     for _, load_group in load_metadata_df.groupby("load_name", sort=False):
         modality_records = load_group[load_group["batch_name_from_vendor"].str.startswith(modality, na=False)]
@@ -185,17 +204,11 @@ def load_fastq_records_df_from_load_names(load_names: list[str], modality: str) 
 
 
 def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Fetch current OCS statuses.
+    """Check the current OCS stage statuses for each fastq sample.
 
-    Samples with no status in either source receive ``NOT COMPLETED``.
-
-    Parameters:
-    fastq_records_df: A dataframe containing ``fastq_name`` and/or
-        ``batch_name_from_vendor`` columns.
-
-    Returns:
-    The same dataframe with the status columns filled in.
+    Look up statuses using the batch name from vendor when all fastq samples
+    share one, otherwise use their fastq sample names. Add the statuses to the
+    metadata and treat ingest as incomplete unless OCS reports it as completed.
     """
     unique_batch_names_from_vendor = fastq_records_df["batch_name_from_vendor"].dropna().unique()
 
@@ -230,16 +243,7 @@ def check_all_fastq_stage_status(fastq_records_df: pd.DataFrame) -> pd.DataFrame
     return fastq_records_df
 
 
-def log_fastq_status_summaries(
-    fastq_records_df: pd.DataFrame,
-) -> None:
-    """
-    Log one-line status summaries for ingest, alignment, and post-alignment.
-
-    Parameters:
-    fastq_records_df: A dataframe of FASTQ samples and their stage statuses.
-    """
-
+def log_fastq_status_summaries(fastq_records_df: pd.DataFrame) -> None:
     total_samples = len(fastq_records_df)
 
     logger.info("Status Summary:")
