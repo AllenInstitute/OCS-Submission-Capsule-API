@@ -9,6 +9,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- `--modality` is now in Common Parameters and required with every input source. Modality is no longer inferred from batch names from vendor.
 - Batch Processing and Backlog or Resequencing Runs inputs cannot be combined. Mixed inputs stop the run with an error.
 - Batch alignment submissions now run audit by default when `--email` is provided. Backlog and dry runs never run audit.
   `--audit false` always disables audit.

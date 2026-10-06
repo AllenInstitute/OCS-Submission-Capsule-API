@@ -152,15 +152,15 @@ Input (the export file from OCS Tracker / batch name from vendor / load names / 
 
 The CLI groups parameters into three sections:
 
-1. **Batch Processing:** `--modality`, `--batch-name-from-vendor`, `--batch-processing` (Use fastq sample names), `--force-submission`, and `--audit`.
+1. **Batch Processing:** `--batch-name-from-vendor`, `--batch-processing` (Use fastq sample names), `--force-submission`, and `--audit`.
 2. **Backlog or Resequencing Runs:** `--ocs-tracker-exporter`, `--fastq-names`, and `--load-names`.
-3. **Common Parameters:** `--email` and `--dry-run` work with either mode. `--config` selects the command configuration for either mode.
+3. **Common Parameters:** `--modality` is required with every input source. `--email` and `--dry-run` work with either mode. `--config` selects the command configuration for either mode.
 
 Use inputs from either Batch Processing or Backlog or Resequencing Runs. Supplying inputs from both sections stops the run with an error before metadata is loaded or jobs are submitted.
 
-Providing modality, batch name from vendor, or force submission, or setting `--audit` or `--batch-processing` to `true`, selects Batch Processing. Both modality and batch name from vendor are required. If either is missing, the run stops with an error. Setting `--audit` or `--batch-processing` to `false` does not select Batch Processing. Backlog runs can use `--audit false`, but `--audit true` is rejected.
+Providing batch name from vendor or force submission, or setting `--audit` or `--batch-processing` to `true`, selects Batch Processing. Both modality and batch name from vendor are required. If either is missing, the run stops with an error. Setting `--audit` or `--batch-processing` to `false` does not select Batch Processing. Backlog runs can use `--audit false`, but `--audit true` is rejected.
 
-Backlog or Resequencing Runs is only used when there are no Batch Processing inputs. The modality is inferred from the batch name from vendor for each fastq sample. ATX and MTX fastq samples both use the MTX workflow. Missing or unrecognized batch names from vendor and mixed modalities stop the run before submission. Submit each modality separately.
+Backlog or Resequencing Runs is only used when there are no Batch Processing inputs. Provide `--modality RTX`, `--modality MTX`, or `--modality RFX` to select the workflow. Use `--modality MTX` for multiome loads containing both ATX and MTX fastq samples. Modality is not inferred from batch names from vendor. Submit each modality separately.
 
 For backlog runs, the export file from OCS Tracker takes precedence over load names and fastq sample names. If no export file is provided, load names take precedence over fastq sample names. Only one input source is used during execution.
 
@@ -186,6 +186,7 @@ absent, the capsule looks it up from OCS using each fastq sample name.
 ```bash
 ocs-submission \
   --ocs-tracker-exporter /path/to/ocs_tracker_export.csv \
+  --modality MTX \
   --dry-run true
 ```
 
@@ -200,11 +201,12 @@ ocs-submission \
 
 ### Load names
 
-For load names, the capsule retrieves every fastq sample associated with each load, checks status using the fastq sample whose batch name from vendor matches the inferred modality, and creates one command and manifest row per load. For multiome loads, the row combines the GEX and ATAC fastq sample names and library prep names while using the MTX/GEX fastq sample for status and command configuration.
+For load names, the capsule retrieves every fastq sample associated with each load, checks status using the fastq sample whose batch name from vendor matches the selected modality, and creates one command and manifest row per load. For multiome loads, the row combines the GEX and ATAC fastq sample names and library prep names while using the MTX/GEX fastq sample for status and command configuration.
 
 ```bash
 ocs-submission \
   --load-names 3796_A01 3796_A02 \
+  --modality MTX \
   --dry-run true
 ```
 
@@ -213,6 +215,7 @@ ocs-submission \
 ```bash
 ocs-submission \
   --fastq-names NY-MX22068-2 NY-MX22068-3 \
+  --modality MTX \
   --dry-run true
 ```
 
@@ -220,7 +223,7 @@ ocs-submission \
 
 | Option | Required | Description |
 |---|---|---|
-| `--modality` | Batch Processing | Workflow modality: `RTX`, `MTX`, or `RFX`. Omit for backlog runs |
+| `--modality` | Yes | Workflow modality: `RTX`, `MTX`, or `RFX`. Required with every input source |
 | `--ocs-tracker-exporter` | No | Path to the export file from OCS Tracker |
 | `--batch-name-from-vendor` | Batch Processing | Batch name from vendor. Cannot be combined with backlog inputs |
 | `--load-names` | No | One or more sequencing load names. Creates one command per load |

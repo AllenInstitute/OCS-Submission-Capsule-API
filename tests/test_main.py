@@ -78,28 +78,23 @@ def test__main__batch_dry_run_uses_common_parameters(monkeypatch, workflow, audi
 @pytest.mark.parametrize(
     "arguments",
     [
-        pytest.param("--modality MTX --fastq-names NW-MX32013-2", id="modality"),
         pytest.param("--batch-name-from-vendor MTX-32013 --fastq-names NW-MX32013-2", id="batch_name_from_vendor"),
         pytest.param("--force-submission alignment --fastq-names NW-MX32013-2", id="force_submission"),
         pytest.param("--batch-processing true --fastq-names NW-MX32013-2", id="use_fastq_names"),
         pytest.param("--audit true --fastq-names NW-MX32013-2", id="audit"),
         pytest.param(
-            "--modality MTX --batch-name-from-vendor MTX-32013 --ocs-tracker-exporter tracker.csv",
+            "--batch-name-from-vendor MTX-32013 --ocs-tracker-exporter tracker.csv",
             id="batch_and_tracker_export",
         ),
         pytest.param(
-            "--modality MTX --batch-name-from-vendor MTX-32013 --fastq-names NW-MX32013-2",
-            id="batch_and_fastq_samples",
-        ),
-        pytest.param(
-            "--modality MTX --batch-name-from-vendor MTX-32013 --load-names 3796_A01",
+            "--batch-name-from-vendor MTX-32013 --load-names 3796_A01",
             id="batch_and_load_names",
         ),
     ],
 )
 def test__main__rejects_mixed_batch_and_backlog_inputs(monkeypatch, capsys, workflow, arguments):
     loaders, manifest = workflow
-    monkeypatch.setattr(sys, "argv", ["ocs-submission", *arguments.split()])
+    monkeypatch.setattr(sys, "argv", ["ocs-submission", "--modality", "MTX", *arguments.split()])
 
     with pytest.raises(SystemExit, match="2"):
         main.main()
@@ -115,19 +110,43 @@ def test__main__rejects_mixed_batch_and_backlog_inputs(monkeypatch, capsys, work
 
 
 @pytest.mark.parametrize(
-    "batch_arguments",
+    "arguments",
     [
-        pytest.param(["--modality", "MTX"], id="modality_only"),
-        pytest.param(["--batch-name-from-vendor", "MTX-32013"], id="batch_name_only"),
+        pytest.param(["--batch-name-from-vendor", "MTX-32013"], id="batch_name_from_vendor"),
+        pytest.param(["--fastq-names", "NW-MX32013-2"], id="fastq_samples"),
+        pytest.param(["--load-names", "3796_A01"], id="load_names"),
+        pytest.param(["--ocs-tracker-exporter", "tracker.csv"], id="ocs_tracker_export"),
     ],
 )
-def test__parse_args__batch_requires_modality_and_batch_name(monkeypatch, capsys, batch_arguments):
-    monkeypatch.setattr(sys, "argv", ["ocs-submission", *batch_arguments])
+def test__main__requires_modality_for_each_input_source(monkeypatch, capsys, workflow, arguments):
+    loaders, manifest = workflow
+    monkeypatch.setattr(sys, "argv", ["ocs-submission", *arguments])
+
+    with pytest.raises(SystemExit, match="2"):
+        main.main()
+
+    assert "the following arguments are required: --modality" in capsys.readouterr().err
+    for loader in loaders.values():
+        loader.assert_not_called()
+    main.execute_ocs_submission_commands.assert_not_called()
+    assert not manifest.exists()
+
+
+@pytest.mark.parametrize(
+    "batch_arguments",
+    [
+        pytest.param(["--force-submission", "alignment"], id="force_submission"),
+        pytest.param(["--batch-processing", "true"], id="use_fastq_names"),
+        pytest.param(["--audit", "true"], id="audit"),
+    ],
+)
+def test__parse_args__batch_requires_batch_name(monkeypatch, capsys, batch_arguments):
+    monkeypatch.setattr(sys, "argv", ["ocs-submission", "--modality", "MTX", *batch_arguments])
 
     with pytest.raises(SystemExit, match="2"):
         main.parse_args()
 
-    assert "Batch Processing requires --modality and --batch-name-from-vendor" in capsys.readouterr().err
+    assert "Batch Processing requires --batch-name-from-vendor" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
@@ -173,12 +192,15 @@ def test__main__backlog_uses_common_parameters(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["ocs-submission", *arguments, "--email", EMAIL, *common_arguments],
+        ["ocs-submission", *arguments, "--modality", "MTX", "--email", EMAIL, *common_arguments],
     )
 
     main.main()
 
-    loaders[source].assert_called_once_with(loader_arguments)
+    if source == "load_names":
+        loaders[source].assert_called_once_with(loader_arguments, modality="MTX")
+    else:
+        loaders[source].assert_called_once_with(loader_arguments)
     for other_source, loader in loaders.items():
         if other_source != source:
             loader.assert_not_called()
@@ -235,13 +257,31 @@ def test__main__batch_audit_follows_submission_and_flag(
     main.send_command_summary_email.assert_called_once()
 
 
-def test__main__mixed_backlog_modalities_fail_before_submission(monkeypatch, workflow):
+def test__main__explicit_modality_does_not_require_a_recognized_batch_name(monkeypatch, workflow):
     loaders, manifest = workflow
-    loaders["fastq_names"].return_value.loc[2, "batch_name_from_vendor"] = "RTX-34056"
-    monkeypatch.setattr(sys, "argv", ["ocs-submission", "--fastq-names", "NW-MX32013-2", "NW-MX32021-10"])
+    loaders["fastq_names"].return_value["batch_name_from_vendor"] = "UNKNOWN-1"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["ocs-submission", "--fastq-names", "NW-MX32013-2", "NW-MX32021-10", "--modality", "MTX", "--dry-run", "true"],
+    )
 
-    with pytest.raises(ValueError, match="Backlog runs require one modality"):
-        main.main()
+    main.main()
 
-    main.execute_ocs_submission_commands.assert_not_called()
-    assert not manifest.exists()
+    rows = pd.read_json(manifest)
+    assert rows["modality"].tolist() == ["MTX", "MTX"]
+    assert rows["align_should_execute"].all()
+    main.send_audit_email.assert_not_called()
+
+
+def test__parse_args__help_lists_modality_in_common_parameters(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["ocs-submission", "--help"])
+
+    with pytest.raises(SystemExit, match="0"):
+        main.parse_args()
+
+    help_text = capsys.readouterr().out
+    batch_help = help_text.split("Batch Processing:")[1].split("Backlog or Resequencing Runs:")[0]
+    common_help = help_text.split("Common Parameters:")[1]
+    assert "--modality" not in batch_help
+    assert "--modality" in common_help

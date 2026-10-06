@@ -13,8 +13,6 @@ from .commands.builder import (
 )
 from .config.loader import CONFIG_PATH, load_jsonc_config
 from .inputs.fastq_records import (
-    MODALITIES,
-    infer_modality,
     load_fastq_records_df_from_batch,
     load_fastq_records_df_from_exporter,
     load_fastq_records_df_from_fastq_names,
@@ -41,15 +39,11 @@ def parse_args() -> argparse.Namespace:
     Batch Processing and Backlog or Resequencing Runs cannot be used together.
     Batch Processing requires modality and batch name from vendor. For backlog
     runs, use the export file from OCS Tracker, load names, or fastq sample names,
-    in that order. Email and dry run work with either section.
+    in that order. Modality is required for every run. Email and dry run work
+    with either section.
     """
     parser = argparse.ArgumentParser(description="OCS Submission Capsule")
     batch = parser.add_argument_group("Batch Processing")
-    batch.add_argument(
-        "--modality",
-        choices=MODALITIES,
-        help="Modality type (RTX/MTX/RFX), required for batch processing",
-    )
     batch.add_argument(
         "--batch-name-from-vendor",
         help="Batch name from vendor to look up on OCS",
@@ -82,6 +76,12 @@ def parse_args() -> argparse.Namespace:
     backlog.add_argument("--load-names", nargs="+", help="One or more load names, separated by spaces.")
 
     common = parser.add_argument_group("Common Parameters")
+    common.add_argument(
+        "--modality",
+        choices=("RTX", "MTX", "RFX"),
+        required=True,
+        help="Workflow modality, required with every input source",
+    )
     common.add_argument("--email", "-e", help="Email address for OCS job notifications and run summary emails")
     common.add_argument(
         "--dry-run",
@@ -96,17 +96,13 @@ def parse_args() -> argparse.Namespace:
     )
     args = parser.parse_args()
     batch_selected = bool(
-        args.modality
-        or args.batch_name_from_vendor
-        or args.force_submission
-        or args.audit == "true"
-        or args.batch_processing == "true"
+        args.batch_name_from_vendor or args.force_submission or args.audit == "true" or args.batch_processing == "true"
     )
     if batch_selected:
         if args.ocs_tracker_exporter or args.fastq_names or args.load_names:
             parser.error("Use inputs from either Batch Processing or Backlog or Resequencing Runs, not both.")
-        if not args.modality or not args.batch_name_from_vendor:
-            parser.error("Batch Processing requires --modality and --batch-name-from-vendor.")
+        if not args.batch_name_from_vendor:
+            parser.error("Batch Processing requires --batch-name-from-vendor.")
     elif args.ocs_tracker_exporter:
         args.fastq_names = args.load_names = None
     elif args.load_names:
@@ -151,7 +147,7 @@ def main() -> None:
         logger.info(f"Running OCS Submission using: {args.ocs_tracker_exporter}")
         fastq_records_df = load_fastq_records_df_from_exporter(args.ocs_tracker_exporter)
     elif args.load_names:
-        fastq_records_df = load_fastq_records_df_from_load_names(args.load_names)
+        fastq_records_df = load_fastq_records_df_from_load_names(args.load_names, modality=args.modality)
     else:
         fastq_records_df = load_fastq_records_df_from_fastq_names(args.fastq_names)
 
@@ -162,13 +158,12 @@ def main() -> None:
         )
         return
 
-    modality = args.modality or infer_modality(fastq_records_df)
     status_summary_df = fastq_records_df.drop_duplicates("load_name") if args.load_names else fastq_records_df
     log_fastq_status_summaries(fastq_records_df=status_summary_df)
 
     ocs_job_commands_df = build_ocs_job_submission_command(
         fastq_records_df=fastq_records_df,
-        modality=modality,
+        modality=args.modality,
         config=config,
         email=args.email,
         force_submission=args.force_submission,

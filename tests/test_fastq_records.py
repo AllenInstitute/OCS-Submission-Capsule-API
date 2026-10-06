@@ -7,7 +7,6 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from ocs_submission.inputs.fastq_records import (
-    infer_modality,
     load_fastq_records_df_from_exporter,
     load_fastq_records_df_from_load_names,
 )
@@ -112,8 +111,7 @@ def test__load_fastq_records_df_from_load_names__returns_fastq_samples(fastq_rec
     assert_frame_equal(result, expected)
 
 
-@pytest.mark.parametrize("modality", [pytest.param("MTX", id="explicit"), pytest.param(None, id="inferred")])
-def test__load_fastq_records_df_from_load_names__checks_only_modality_fastq_sample(caplog, fastq_records, modality):
+def test__load_fastq_records_df_from_load_names__checks_only_modality_fastq_sample(caplog, fastq_records):
     caplog.set_level(logging.INFO)
     records = fastq_records[fastq_records["load_name"] == "3796_A01"]
     metadata = records.drop(columns=["ingest_status", "align_status", "postalign_status"]).set_index(
@@ -129,39 +127,9 @@ def test__load_fastq_records_df_from_load_names__checks_only_modality_fastq_samp
             "ocs_submission.inputs.fastq_records.get_latest_results", autospec=True, return_value=statuses
         ) as get_latest_results,
     ):
-        result = load_fastq_records_df_from_load_names(["3796_A01"], modality)
+        result = load_fastq_records_df_from_load_names(["3796_A01"], "MTX")
 
     get_latest_results.assert_called_once_with(batch_name_from_vendor="MTX-32021")
     assert "Checking Status for NW-MX32021-10" in caplog.text
     assert "Checking Status for NW-AT36021-10" not in caplog.text
     assert_frame_equal(result, records.set_index("fastq_name", drop=False))
-
-
-@pytest.mark.parametrize(
-    "batch_names, expected",
-    [
-        pytest.param(["RTX-34056", "RTX-24047"], "RTX", id="rtx"),
-        pytest.param(["RFX-34056"], "RFX", id="rfx"),
-        pytest.param(["MTX-32021", "ATX-36021"], "MTX", id="multiome"),
-    ],
-)
-def test__infer_modality__uses_batch_names_from_vendor(batch_names, expected):
-    records = pd.DataFrame({"batch_name_from_vendor": batch_names})
-
-    assert infer_modality(records) == expected
-
-
-@pytest.mark.parametrize(
-    "batch_names, message",
-    [
-        pytest.param(["RTX-34056", "MTX-32013"], "Backlog runs require one modality", id="mixed"),
-        pytest.param(["UNKNOWN-1"], "Cannot infer modality", id="unknown"),
-        pytest.param([None], "Cannot infer modality", id="missing"),
-        pytest.param([float("nan")], "Cannot infer modality", id="empty_csv_batch"),
-    ],
-)
-def test__infer_modality__rejects_missing_unknown_or_mixed_batches(batch_names, message):
-    records = pd.DataFrame({"batch_name_from_vendor": batch_names})
-
-    with pytest.raises(ValueError, match=message):
-        infer_modality(records)

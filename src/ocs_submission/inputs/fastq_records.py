@@ -11,8 +11,6 @@ from ..workflow.stages import JOB_STAGES, Stage
 
 logger = logging.getLogger(__name__)
 
-MODALITIES = ("RTX", "MTX", "RFX")
-
 FASTQ_RECORD_COLUMNS = [
     "fastq_name",
     "study_set",
@@ -139,24 +137,6 @@ def load_fastq_records_df_from_exporter(exporter_path: str) -> pd.DataFrame:
     return fastq_records_df
 
 
-def infer_modality(fastq_records_df: pd.DataFrame) -> str:
-    """Infer one modality from the batch name from vendor for each fastq sample.
-
-    ATX and MTX fastq samples both use the MTX workflow. Missing or unrecognized
-    batch names from vendor and mixed modalities stop the run before submission.
-    """
-    batch_names = fastq_records_df["batch_name_from_vendor"].astype("string")
-    modalities = batch_names.str.split("-", n=1).str[0].replace({"ATX": "MTX"})
-    if not modalities.isin(MODALITIES).all():
-        raise ValueError(
-            "Cannot infer modality: every fastq sample must have a batch name from vendor "
-            "starting with RTX, MTX, RFX, or ATX."
-        )
-    if modalities.nunique() != 1:
-        raise ValueError("Backlog runs require one modality. Submit each modality in a separate run.")
-    return modalities.iloc[0]
-
-
 def load_fastq_records_df_from_batch(batch_name_from_vendor: str) -> pd.DataFrame:
     """Load metadata and current stage statuses for fastq samples using the batch name from vendor."""
     fastq_records_df = query_metadata(batch_name_from_vendor=batch_name_from_vendor)
@@ -172,16 +152,14 @@ def load_fastq_records_df_from_fastq_names(fastq_names: list[str]) -> pd.DataFra
     return fastq_record_df[FASTQ_RECORD_COLUMNS]
 
 
-def load_fastq_records_df_from_load_names(load_names: list[str], modality: str | None = None) -> pd.DataFrame:
+def load_fastq_records_df_from_load_names(load_names: list[str], modality: str) -> pd.DataFrame:
     """Load all fastq samples associated with the requested load names.
 
     For each load, check status using the fastq sample whose batch name from
     vendor matches the modality. If none matches, use the first fastq sample.
-    Apply those statuses to all fastq samples in the load. When modality is not
-    provided, infer it from the batch names from vendor.
+    Apply those statuses to all fastq samples in the load.
     """
     load_metadata_df = query_metadata(load_name_list=load_names)
-    modality = modality or infer_modality(load_metadata_df)
     status_record_indexes = []
     for _, load_group in load_metadata_df.groupby("load_name", sort=False):
         modality_records = load_group[load_group["batch_name_from_vendor"].str.startswith(modality, na=False)]
