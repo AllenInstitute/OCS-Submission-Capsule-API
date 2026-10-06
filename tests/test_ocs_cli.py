@@ -79,6 +79,21 @@ def test__query_metadata__looks_up_each_name_with_singular_flag(
     assert_frame_equal(result, expected)
 
 
+def test__query_metadata__missing_load_metadata_asks_to_check_load_names():
+    response = subprocess.CompletedProcess(args=[], returncode=0, stdout="[]")
+
+    with patch("ocs_submission.integrations.ocs_cli.execute_ocs_cmd", autospec=True, return_value=response):
+        with pytest.raises(ValueError) as error:
+            query_metadata(load_name_list=["NW-FX38024-3"])
+
+    assert str(error.value) == (
+        "OCS returned no metadata for load 'NW-FX38024-3'. "
+        "There may be an issue with this load name on OCS — verify metadata with "
+        "`ocs fastqs list metadata` and perform a manual check. "
+        "Check that these are load names, not fastq sample names."
+    )
+
+
 @pytest.mark.parametrize(
     "align_status, stage",
     [

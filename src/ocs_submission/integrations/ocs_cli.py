@@ -218,11 +218,15 @@ def query_metadata(
             metadata_cmd = metadata_base_cmd + [lookup_flag, lookup_value]
             metadata_rows = json.loads(execute_ocs_cmd(cmd_list=metadata_cmd).stdout)
             if not metadata_rows:
-                raise ValueError(
+                lookup_description = "load name" if load_name_list else lookup_label
+                message = (
                     f"OCS returned no metadata for {lookup_label} {lookup_value!r}. "
-                    f"There may be an issue with this {lookup_label} on OCS — verify metadata with "
+                    f"There may be an issue with this {lookup_description} on OCS — verify metadata with "
                     "`ocs fastqs list metadata` and perform a manual check."
                 )
+                if load_name_list:
+                    message += " Check that these are load names, not fastq sample names."
+                raise ValueError(message)
             all_metadata_rows.extend(metadata_rows)
     else:
         if batch_name_from_vendor is None:

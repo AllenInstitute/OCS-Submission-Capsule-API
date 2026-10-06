@@ -13,6 +13,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Batch Processing and Backlog or Resequencing Runs inputs cannot be combined. Mixed inputs stop the run with an error.
 - Batch alignment submissions now run audit by default when `--email` is provided. Backlog and dry runs never run audit.
   `--audit false` always disables audit.
+- When OCS returns no metadata for a load name, the error now asks users to check that the inputs are load names, not fastq sample names.
 
 ## [0.1.5] - 2026-09-23
 
