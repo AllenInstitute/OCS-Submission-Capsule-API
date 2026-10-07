@@ -161,6 +161,10 @@ def main() -> None:
     status_summary_df = fastq_records_df.drop_duplicates("load_name") if args.load_names else fastq_records_df
     log_fastq_status_summaries(fastq_records_df=status_summary_df)
 
+    use_fastq_names = bool(args.fastq_names)
+    if args.batch_processing == "true" and args.modality in ("RTX", "RFX"):
+        use_fastq_names = True
+
     ocs_job_commands_df = build_ocs_job_submission_command(
         fastq_records_df=fastq_records_df,
         modality=args.modality,
@@ -168,7 +172,7 @@ def main() -> None:
         email=args.email,
         force_submission=args.force_submission,
         dry_run=dry_run,
-        batch_processing=args.batch_processing == "true",
+        use_fastq_names=use_fastq_names,
         group_by_load_name=bool(args.load_names),
     )
 

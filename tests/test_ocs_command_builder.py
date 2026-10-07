@@ -236,7 +236,7 @@ def test_build_ocs_command_args_renders_template_values(config, make_fastq_recor
     assert spacing == 180
 
 
-def test_build_ocs_command_args_uses_fastq_name_for_rtx_batch_processing(config, make_fastq_record):
+def test_build_ocs_command_args_uses_fastq_name_when_requested(config, make_fastq_record):
     template = config["workflows"]["MTX"]["alignment_command_configs"][0]
     record = make_fastq_record()
 
@@ -246,7 +246,7 @@ def test_build_ocs_command_args_uses_fastq_name_for_rtx_batch_processing(config,
         modality="RTX",
         email=EMAIL,
         command_template=template,
-        batch_processing=True,
+        use_fastq_names=True,
     )
 
     assert "--load-names" not in command_args

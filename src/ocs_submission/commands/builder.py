@@ -156,7 +156,7 @@ def build_ocs_command_args(
     modality: str,
     email: str,
     command_template: dict,
-    batch_processing: bool = False,
+    use_fastq_names: bool = False,
 ) -> tuple[list[str], int]:
     """
     Build a command for one fastq sample from a command template.
@@ -167,7 +167,7 @@ def build_ocs_command_args(
     modality: The modality used to look up the reference genome.
     email: The notification email address for OCS.
     command_template: The base command, arguments, and wait time from the config.
-    batch_processing: Whether to use the fastq sample name for RTX/RFX commands.
+    use_fastq_names: Whether to use fastq sample names instead of load names in commands.
 
     Returns:
     Return command arguments and the wait time before the next command. Raise an error when
@@ -198,7 +198,7 @@ def build_ocs_command_args(
 
     command_args = list(command_template["command"])
     for argument in command_template["arguments"]:
-        if batch_processing and modality in ("RTX", "RFX") and argument["flag"] == "--load-names":
+        if use_fastq_names and argument["flag"] == "--load-names":
             command_args.extend(["--fastq-names", fastq_record.fastq_name])
             continue
         command_args.append(argument["flag"].format(**command_template_field_values))
@@ -213,7 +213,7 @@ def build_alignment_job_command_record(
     config: dict,
     email: str,
     force_submission: str | None,
-    batch_processing: bool = False,
+    use_fastq_names: bool = False,
 ) -> dict:
     """
     Create an alignment command only after fastq sample ingest is complete.
@@ -226,7 +226,7 @@ def build_alignment_job_command_record(
     config: The OCS workflow configuration.
     email: The notification email address for OCS.
     force_submission: Set to "alignment" to run alignment even if it would normally be skipped.
-    batch_processing: Whether to use the fastq sample name for RTX/RFX commands.
+    use_fastq_names: Whether to use fastq sample names instead of load names in commands.
 
     Returns:
     Return alignment fields for one manifest row. Leave command fields empty when alignment is
@@ -267,7 +267,7 @@ def build_alignment_job_command_record(
                 modality=modality,
                 email=email,
                 command_template=align_command_config,
-                batch_processing=batch_processing,
+                use_fastq_names=use_fastq_names,
             )
 
     return {
@@ -290,7 +290,7 @@ def build_post_alignment_job_command_record(
     email: str,
     force_submission: str | None,
     alignment_should_execute: bool,
-    batch_processing: bool = False,
+    use_fastq_names: bool = False,
 ) -> dict:
     """
     Build a post-alignment command only after alignment is complete.
@@ -303,7 +303,7 @@ def build_post_alignment_job_command_record(
     force_submission: Set to "post-alignment" to run post-alignment even if it would normally
         be skipped.
     alignment_should_execute: Whether alignment is scheduled in the same pass.
-    batch_processing: Whether to use the fastq sample name for RTX/RFX commands.
+    use_fastq_names: Whether to use fastq sample names instead of load names in commands.
 
     Returns:
     Return post-alignment fields for one manifest row. Leave command fields empty when
@@ -347,7 +347,7 @@ def build_post_alignment_job_command_record(
                 modality=modality,
                 email=email,
                 command_template=postalign_template,
-                batch_processing=batch_processing,
+                use_fastq_names=use_fastq_names,
             )
 
     return {
@@ -370,7 +370,7 @@ def build_ocs_job_submission_command(
     email: str,
     force_submission: str | None,
     dry_run: bool,
-    batch_processing: bool = False,
+    use_fastq_names: bool = False,
     group_by_load_name: bool = False,
 ) -> pd.DataFrame:
     """
@@ -383,7 +383,7 @@ def build_ocs_job_submission_command(
     email: The notification email address recorded on each row.
     force_submission: Optionally force alignment or post-alignment to run.
     dry_run: Whether this run is a dry run (recorded on each row).
-    batch_processing: Whether to use the fastq sample name for RTX/RFX commands.
+    use_fastq_names: Whether to use fastq sample names instead of load names in commands.
     group_by_load_name: Whether the fastq samples in each load should produce one command per load.
 
     Returns:
@@ -435,7 +435,7 @@ def build_ocs_job_submission_command(
             config=config,
             email=email,
             force_submission=force_submission,
-            batch_processing=batch_processing,
+            use_fastq_names=use_fastq_names,
         )
 
         postalign_record = build_post_alignment_job_command_record(
@@ -445,7 +445,7 @@ def build_ocs_job_submission_command(
             email=email,
             force_submission=force_submission,
             alignment_should_execute=alignment_record["align_should_execute"],
-            batch_processing=batch_processing,
+            use_fastq_names=use_fastq_names,
         )
 
         shared_record = {

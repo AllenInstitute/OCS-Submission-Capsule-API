@@ -210,6 +210,10 @@ def test__main__backlog_uses_common_parameters(
     assert rows["notify_email"].tolist() == [EMAIL] * row_count
     assert rows["dry_run"].tolist() == [dry_run] * row_count
     assert rows["force_submission"].isna().all()
+    for row in rows.loc[rows["align_should_execute"]].itertuples():
+        flag = "--fastq-names" if source == "fastq_names" else "--load-names"
+        name = row.fastq_name if source == "fastq_names" else row.load_name
+        assert row.align_command_args[row.align_command_args.index(flag) + 1] == name
     main.send_audit_email.assert_not_called()
     if dry_run:
         main.send_command_summary_email.assert_not_called()
