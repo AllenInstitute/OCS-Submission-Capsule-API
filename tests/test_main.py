@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import create_autospec
+from unittest.mock import call, create_autospec
 
 import pandas as pd
 import pytest
@@ -79,9 +79,7 @@ def test__main__batch_dry_run_uses_common_parameters(monkeypatch, workflow, audi
     "arguments",
     [
         pytest.param("--batch-name-from-vendor MTX-32013 --fastq-names NW-MX32013-2", id="batch_name_from_vendor"),
-        pytest.param("--force-submission alignment --fastq-names NW-MX32013-2", id="force_submission"),
         pytest.param("--batch-processing true --fastq-names NW-MX32013-2", id="use_fastq_names"),
-        pytest.param("--audit true --fastq-names NW-MX32013-2", id="audit"),
         pytest.param(
             "--batch-name-from-vendor MTX-32013 --ocs-tracker-exporter tracker.csv",
             id="batch_and_tracker_export",
@@ -135,9 +133,7 @@ def test__main__requires_modality_for_each_input_source(monkeypatch, capsys, wor
 @pytest.mark.parametrize(
     "batch_arguments",
     [
-        pytest.param(["--force-submission", "alignment"], id="force_submission"),
         pytest.param(["--batch-processing", "true"], id="use_fastq_names"),
-        pytest.param(["--audit", "true"], id="audit"),
     ],
 )
 def test__parse_args__batch_requires_batch_name(monkeypatch, capsys, batch_arguments):
@@ -222,6 +218,36 @@ def test__main__backlog_uses_common_parameters(
 
 
 @pytest.mark.parametrize(
+    "option, expected_force_submission, audit_expected",
+    [
+        pytest.param(["--force-submission", "alignment"], "alignment", False, id="force_submission"),
+        pytest.param(["--audit", "true"], None, True, id="audit"),
+    ],
+)
+def test__main__backlog_accepts_force_submission_and_audit(
+    monkeypatch, workflow, option, expected_force_submission, audit_expected
+):
+    _, manifest = workflow
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["ocs-submission", "--modality", "MTX", "--fastq-names", "NW-MX32013-2", "--email", EMAIL, *option],
+    )
+
+    main.main()
+
+    rows = pd.read_json(manifest)
+    if expected_force_submission:
+        assert rows["force_submission"].iloc[0] == expected_force_submission
+    else:
+        assert rows["force_submission"].isna().all()
+    if audit_expected:
+        assert main.send_audit_email.call_args_list == [call("MTX-32013", EMAIL), call("MTX-32021", EMAIL)]
+    else:
+        main.send_audit_email.assert_not_called()
+
+
+@pytest.mark.parametrize(
     "audit_arguments, align_status, postalign_status, audit_expected",
     [
         pytest.param([], "NOT COMPLETED", "NOT COMPLETED", True, id="alignment_default_audit"),
@@ -278,7 +304,7 @@ def test__main__explicit_modality_does_not_require_a_recognized_batch_name(monke
     main.send_audit_email.assert_not_called()
 
 
-def test__parse_args__help_lists_modality_in_common_parameters(monkeypatch, capsys):
+def test__parse_args__help_lists_common_parameters(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["ocs-submission", "--help"])
 
     with pytest.raises(SystemExit, match="0"):
@@ -288,4 +314,6 @@ def test__parse_args__help_lists_modality_in_common_parameters(monkeypatch, caps
     batch_help = help_text.split("Batch Processing:")[1].split("Backlog or Resequencing Runs:")[0]
     common_help = help_text.split("Common Parameters:")[1]
     assert "--modality" not in batch_help
-    assert "--modality" in common_help
+    for option in ("--modality", "--force-submission", "--audit"):
+        assert option not in batch_help
+        assert option in common_help

@@ -112,7 +112,7 @@ The OCS submission workflow loads fastq samples from one input source, builds an
 
 The export file from OCS Tracker provides metadata and stage statuses. For other input sources, the workflow looks up both on OCS. Load name inputs create one command and manifest row per load.
 
-Summary emails are sent when there is something to report and `--email` is provided. Batch Processing runs audit by default after alignment submission attempts when `--email` is provided. The audit queries LIMS and sends reports for each batch name from vendor. Set `--audit true` to request audit for other batch runs, or `--audit false` to always skip it. Backlog runs never run audit. Dry runs print commands and write the manifest without submitting jobs, sending emails, or running LIMS audits.
+Summary emails are sent when there is something to report and `--email` is provided. Batch Processing runs audit by default after alignment submission attempts when `--email` is provided. The audit queries LIMS and sends reports for each batch name from vendor. Set `--audit true` to request audit for any run, or `--audit false` to always skip it. Dry runs print commands and write the manifest without submitting jobs, sending emails, or running LIMS audits.
 
 ```
 Input (the export file from OCS Tracker / batch name from vendor / load names / fastq sample names)
@@ -142,7 +142,7 @@ Input (the export file from OCS Tracker / batch name from vendor / load names / 
 ┌─────────────────────────┐
 │  Write Manifest         │  generate ocs_job_commands_manifest.json
 │  Send Email             │  send the submission summary by email
-│  Run Audit (batch only)  │  audit alignment submissions by default, unless disabled
+│       Run Audit         │  audit batch alignment submissions by default, or any run when requested
 └─────────────────────────┘
 ```
 
@@ -152,15 +152,15 @@ Input (the export file from OCS Tracker / batch name from vendor / load names / 
 
 The CLI groups parameters into three sections:
 
-1. **Batch Processing:** `--batch-name-from-vendor`, `--batch-processing` (Use fastq sample names), `--force-submission`, and `--audit`.
+1. **Batch Processing:** `--batch-name-from-vendor` and `--batch-processing` (Use fastq sample names).
 2. **Backlog or Resequencing Runs:** `--ocs-tracker-exporter`, `--fastq-names`, and `--load-names`.
-3. **Common Parameters:** `--modality` is required with every input source. `--email` and `--dry-run` work with either mode. `--config` selects the command configuration for either mode.
+3. **Common Parameters:** `--modality` is required with every input source. `--email`, `--dry-run`, `--force-submission`, and `--audit` work with either mode. `--config` selects the command configuration for either mode.
 
 Use inputs from either Batch Processing or Backlog or Resequencing Runs. Supplying inputs from both sections stops the run with an error before metadata is loaded or jobs are submitted.
 
-Providing batch name from vendor or force submission, or setting `--audit` or `--batch-processing` to `true`, selects Batch Processing. Both modality and batch name from vendor are required. If either is missing, the run stops with an error. Setting `--audit` or `--batch-processing` to `false` does not select Batch Processing. Backlog runs can use `--audit false`, but `--audit true` is rejected.
+Providing batch name from vendor or setting `--batch-processing` to `true` selects Batch Processing. Both modality and batch name from vendor are required. If either is missing, the run stops with an error. Setting `--batch-processing` to `false` does not select Batch Processing.
 
-Backlog or Resequencing Runs is only used when there are no Batch Processing inputs. Provide `--modality RTX`, `--modality MTX`, or `--modality RFX` to select the workflow. Use `--modality MTX` for multiome loads containing both ATX and MTX fastq samples. Modality is not inferred from batch names from vendor. Submit each modality separately.
+Backlog or Resequencing Runs is only used when there are no Batch Processing inputs. Provide `--modality RTX`, `--modality MTX`, or `--modality RFX` to select the workflow. Use `--modality MTX` for multiome loads containing both ATX and MTX fastq samples. Modality is not inferred from batch names from vendor. Submit each modality separately. `--audit true` audits each batch name from vendor in the submission manifest.
 
 For backlog runs, the export file from OCS Tracker takes precedence over load names and fastq sample names. If no export file is provided, load names take precedence over fastq sample names. Only one input source is used during execution.
 
@@ -231,7 +231,7 @@ ocs-submission \
 | `--force-submission` | No | Force `alignment` or `post-alignment` regardless of its current status. Alignment still requires completed ingest and post-alignment still requires completed alignment |
 | `--email`, `-e` | No | Email for OCS job notifications and run summary emails. Required to generate and send audit reports |
 | `--dry-run` | No | `true` or `false` (default `false`). Log commands without submitting jobs or sending summary or audit emails |
-| `--audit` | No | Defaults to auditing batch alignment submission attempts. `true` requests audit for any batch run. `false` always disables audit. Requires `--email`. Backlog and dry runs never run audit |
+| `--audit` | No | Defaults to auditing batch alignment submission attempts. `true` requests audit for any run. `false` always disables audit. Requires `--email`. Dry runs never run audit |
 | `--batch-processing` | No | Batch Processing only: `true` or `false` (default `false`). Use fastq sample names for RTX/RFX alignment and post-alignment commands |
 | `--config` | No | Path to JSONC config; defaults to included `config.jsonc` |
 

@@ -39,8 +39,7 @@ def parse_args() -> argparse.Namespace:
     Batch Processing and Backlog or Resequencing Runs cannot be used together.
     Batch Processing requires modality and batch name from vendor. For backlog
     runs, use the export file from OCS Tracker, load names, or fastq sample names,
-    in that order. Modality is required for every run. Email and dry run work
-    with either section.
+    in that order. Common parameters work with either section.
     """
     parser = argparse.ArgumentParser(description="OCS Submission Capsule")
     batch = parser.add_argument_group("Batch Processing")
@@ -57,19 +56,6 @@ def parse_args() -> argparse.Namespace:
             "(true/false, default: false)"
         ),
     )
-    batch.add_argument(
-        "--force-submission",
-        choices=["alignment", "post-alignment"],
-        help="Submit alignment or post-alignment regardless of its current status",
-    )
-    batch.add_argument(
-        "--audit",
-        choices=("true", "false"),
-        help=(
-            "Run a LIMS audit after batch processing (true/false). Defaults to auditing alignment submissions. "
-            "False always disables audit. Dry runs never audit."
-        ),
-    )
     backlog = parser.add_argument_group("Backlog or Resequencing Runs")
     backlog.add_argument("--ocs-tracker-exporter", help="Export file from OCS Tracker")
     backlog.add_argument("--fastq-names", nargs="+", help="One or more fastq sample names, separated by spaces.")
@@ -84,6 +70,19 @@ def parse_args() -> argparse.Namespace:
     )
     common.add_argument("--email", "-e", help="Email address for OCS job notifications and run summary emails")
     common.add_argument(
+        "--force-submission",
+        choices=["alignment", "post-alignment"],
+        help="Submit alignment or post-alignment regardless of its current status",
+    )
+    common.add_argument(
+        "--audit",
+        choices=("true", "false"),
+        help=(
+            "Run a LIMS audit (true/false). Defaults to auditing batch alignment submissions. "
+            "False always disables audit. Dry runs never audit."
+        ),
+    )
+    common.add_argument(
         "--dry-run",
         choices=("true", "false"),
         default="false",
@@ -95,9 +94,7 @@ def parse_args() -> argparse.Namespace:
         help=f"Path to a JSONC config file (default: {CONFIG_PATH})",
     )
     args = parser.parse_args()
-    batch_selected = bool(
-        args.batch_name_from_vendor or args.force_submission or args.audit == "true" or args.batch_processing == "true"
-    )
+    batch_selected = bool(args.batch_name_from_vendor or args.batch_processing == "true")
     if batch_selected:
         if args.ocs_tracker_exporter or args.fastq_names or args.load_names:
             parser.error("Use inputs from either Batch Processing or Backlog or Resequencing Runs, not both.")
@@ -120,8 +117,8 @@ def main() -> None:
     Summary emails are sent when there is something to report and an email
     address is provided. Batch alignment submissions run a LIMS audit by default
     when an email address is provided. Explicitly enabling audit also allows it
-    for other batch runs. Disabling audit always skips it. Backlog and dry runs
-    never run audit. Dry runs do not submit jobs or send either email.
+    for other runs. Disabling audit always skips it. Dry runs do not submit jobs,
+    send emails, or run audits.
     """
     args = parse_args()
 
@@ -200,11 +197,9 @@ def main() -> None:
 
     logger.info("OCS Submission Completed.")
 
-    if (
-        args.batch_name_from_vendor
-        and args.audit != "false"
-        and not dry_run
-        and (args.audit == "true" or ocs_job_commands_df["align_should_execute"].any())
+    if not dry_run and (
+        args.audit == "true"
+        or (args.batch_name_from_vendor and args.audit != "false" and ocs_job_commands_df["align_should_execute"].any())
     ):
         for batch_name in ocs_job_commands_df["batch_name_from_vendor"].dropna().unique():
             logger.info(f"Running AUDIT for batch name from vendor: {batch_name}")
