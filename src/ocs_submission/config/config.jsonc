@@ -228,46 +228,10 @@
       ],
       "post_alignment_command_configs": [
         {
-          "name": "10xMultX_GEX",
+          "name": "10x_multiome_qc",
           "match": {
             "library_preps": [
-              "10xMultX_GEX"
-            ]
-          },
-          "command": [
-            "ocs",
-            "fastqs",
-            "postalign",
-            "tenx-arc"
-          ],
-          "arguments": [
-            {
-              "flag": "--asset-name",
-              "value": "10x_multiome_qc"
-            },
-            {
-              "flag": "--asset-tag",
-              "value": "1.0.1"
-            },
-            {
-              "flag": "--load-names",
-              "value": "{load_name}"
-            },
-            {
-              "flag": "--notify-on",
-              "value": "FAILED"
-            },
-            {
-              "flag": "--notify",
-              "value": "{email}"
-            }
-          ],
-          "spacing": 60
-        },
-        {
-          "name": "10xRSeq_Mult",
-          "match": {
-            "library_preps": [
+              "10xMultX_GEX",
               "10xRSeq_Mult"
             ]
           },
@@ -284,7 +248,7 @@
             },
             {
               "flag": "--asset-tag",
-              "value": "1.0.0"
+              "value": "1.0.2"
             },
             {
               "flag": "--load-names",
@@ -553,7 +517,8 @@
               "10xV4_FX16",
               "10xV4_FX16-TK",
               "10xV4_FX4",
-              "10xV4_FX4-TK"
+              "10xV4_FX4-TK",
+              "10xV4_FX"
             ],
             "organisms": [
               "mouse",
@@ -618,7 +583,8 @@
               "10xFXv2",
               "10xV3.1_FX",
               "10xV4_FX4",
-              "10xV4_FX4-TK"
+              "10xV4_FX4-TK",
+              "10xV4_FX"
             ],
             "organisms": [
               "mouse",
