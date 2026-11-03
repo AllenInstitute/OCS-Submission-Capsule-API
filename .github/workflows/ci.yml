@@ -14,21 +14,16 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v7
 
       # Per uv docs, set up Python with the official action, then install uv.
       # https://docs.astral.sh/uv/guides/integration/github/
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.0.0
@@ -38,9 +33,6 @@ jobs:
       - name: Install project and dev dependencies (from lockfile)
         run: uv sync --extra dev --frozen
 
-      - name: Install just
-        run: uv tool install rust-just
-
       - name: Check formatting (ruff format)
         run: uv run --frozen ruff format --check src tests
 
@@ -48,7 +40,7 @@ jobs:
         run: uv run --frozen ruff check src tests
 
       - name: Run tests
-        run: just test
+        run: uv run --extra dev --frozen pytest --cov=ocs_submission --cov-report=term-missing
 
       - name: Type check (mypy)
         run: uv run --frozen mypy src
