@@ -8,4 +8,4 @@ RTX | ocs fastqs align tenx-rnaseq | cellranger-rnaseq | latest | 10xV3.1D; 10xR
 RTX | ocs fastqs align tenx-rnaseq-multi | cellranger-multi | latest | 10xV3.1_HT_CP | Load name | --cellranger-addopts --include-introns
 RTX | ocs fastqs align tenx-rnaseq-multi | cellranger-multi | 9.0.1 | 10xV4_PX | Load name | --cellranger-addopts --create-bam=TRUE
 RTX | ocs fastqs align tenx-rnaseq | cellranger-rnaseq | 8.0.1 | 10xV4; 10xV4-TK | Load name | --cellranger-addopts --chemistry {chemistry}<br>Chemistry: 10xV4: SC3Pv4; 10xV4-TK: SC3Pv4
-RFX | ocs fastqs align tenx-rnaseq-multi | cellranger-multi | 10.1.0 | 10xFXv2; 10xV3.1_FX; 10xV4_FX16; 10xV4_FX16-TK; 10xV4_FX4; 10xV4_FX4-TK; 10xV4_FX | Load name | --cellflex-probe-set-name {probe_set}<br>--cellranger-addopts --create-bam=true<br>--execution-vcpus 128<br>Organisms: mouse; human
+RFX | ocs fastqs align tenx-rnaseq-multi | cellranger-multi | 10.1.0 | 10xFXv2; 10xV3.1_FX; 10xV4_FX16; 10xV4_FX16-TK; 10xV4_FX4; 10xV4_FX4-TK; 10xV4_FX | Load name | --cellflex-probe-set-name {probe_set}<br>--cellranger-addopts --create-bam=true<br>Organisms: mouse; human
