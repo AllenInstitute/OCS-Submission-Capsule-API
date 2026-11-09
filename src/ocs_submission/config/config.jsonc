@@ -19,7 +19,6 @@
   // - {email}
   // - {chemistry}
   // - {probe_set}
-  // - {execution_vcpus}
   "references": {
     "human": {
       "RTX": "human_10x_grch38_genome_star2.7.1a",
@@ -557,10 +556,6 @@
               "value": "--create-bam=true"
             },
             {
-              "flag": "--execution-vcpus",
-              "value": "{execution_vcpus}"
-            },
-            {
               "flag": "--notify-on",
               "value": "FAILED"
             },
@@ -569,7 +564,6 @@
               "value": "{email}"
             }
           ],
-          "execution_vcpus": 128,
           "spacing": 180
         }
       ],

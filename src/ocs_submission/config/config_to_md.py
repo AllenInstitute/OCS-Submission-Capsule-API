@@ -72,10 +72,13 @@ def command_rows(config: dict, stage: str) -> list[list[str]]:
             if "organisms" in template["match"]:
                 options.append("Organisms: " + "; ".join(template["match"]["organisms"]))
             identifiers = []
-            if "--load-names" in arguments:
-                identifiers.append("Load name")
-            if "--fastq-names" in arguments:
+            if modality == "RTX" and stage == "post_alignment":
                 identifiers.append("Fastq name")
+            else:
+                if "--load-names" in arguments:
+                    identifiers.append("Load name")
+                if "--fastq-names" in arguments:
+                    identifiers.append("Fastq name")
             rows.append(
                 [
                     modality,
