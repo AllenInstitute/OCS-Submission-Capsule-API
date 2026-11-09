@@ -52,7 +52,7 @@ jobs:
         run: uv run --frozen ocs-submission --help
 
   export-config:
-    name: Export config Markdown
+    name: Update config Markdown on main
     needs: ci
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
