@@ -50,3 +50,41 @@ jobs:
 
       - name: Check CLI entry point
         run: uv run --frozen ocs-submission --help
+
+  export-config:
+    name: Export config Markdown
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+
+      - name: Export config Markdown
+        run: |
+          uv run --frozen python -m ocs_submission.config.config_to_md \
+            --input src/ocs_submission/config/config.jsonc \
+            --output-dir src/ocs_submission/config/md-export
+
+      - name: Commit config Markdown
+        run: |
+          git add src/ocs_submission/config/md-export/references.md \
+            src/ocs_submission/config/md-export/alignment.md \
+            src/ocs_submission/config/md-export/post_alignment.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(config): regenerate reference table, alignment, postqc command Markdown tables"
+          git push origin HEAD:main
