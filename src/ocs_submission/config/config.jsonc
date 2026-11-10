@@ -519,7 +519,8 @@
               "10xV4_FX16-TK",
               "10xV4_FX4",
               "10xV4_FX4-TK",
-              "10xV4_FX"
+              "10xV4_FX",
+              "10xV4_FX4-cps"
             ],
             "organisms": [
               "mouse",
@@ -580,7 +581,8 @@
               "10xV3.1_FX",
               "10xV4_FX4",
               "10xV4_FX4-TK",
-              "10xV4_FX"
+              "10xV4_FX",
+              "10xV4_FX4-cps"
             ],
             "organisms": [
               "mouse",
