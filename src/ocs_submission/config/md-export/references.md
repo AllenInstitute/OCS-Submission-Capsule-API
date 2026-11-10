@@ -4,10 +4,11 @@ Organism | Modality | Library Prep Methods | Reference Genome / OCS Reference ID
 --- | --- | --- | --- | --- | --- | --- | ---
 human | MTX | 10xMultX_GEX; 10xRSeq_Mult | human_10x_grch38_genome_star2.7.1a |  | Not required | Configured | 
 human | RTX | 10xV3.1D; 10xRseq_Mult_noATAC; 10xV3.1_HT; 10Xv3.1; 10Xv3.1_LT; 10Xv3; 10Xv2; 10xV3.1_HT_CP; 10xV4_PX; 10xV4; 10xV4-TK | human_10x_grch38_genome_star2.7.1a |  | Not required | Configured | 
-human | RFX | 10xFXv2; 10xV3.1_FX; 10xV4_FX16; 10xV4_FX16-TK; 10xV4_FX4; 10xV4_FX4-TK; 10xV4_FX | human_10x_grch38-2024-a_probe-genome_cr-v9-0-0 | human_10x_grch38-2024-A_chromium_v2.0_cellflex_probe_set | Required | Configured | 
+human | RFX | 10xFXv2; 10xV3.1_FX; 10xV4_FX16; 10xV4_FX16-TK; 10xV4_FX4; 10xV4_FX4-TK; 10xV4_FX; 10xV4_FX4-cps | human_10x_grch38-2024-a_probe-genome_cr-v9-0-0 | human_10x_grch38-2024-A_chromium_v2.0_cellflex_probe_set | Required | Configured | 
 mouse | MTX | 10xMultX_GEX; 10xRSeq_Mult | mouse_10x_mm10_genome_star2.7.1a |  | Not required | Configured | 
 mouse | RTX | 10xV3.1D; 10xRseq_Mult_noATAC; 10xV3.1_HT; 10Xv3.1; 10Xv3.1_LT; 10Xv3; 10Xv2; 10xV3.1_HT_CP; 10xV4_PX; 10xV4; 10xV4-TK | mouse_10x_mm10_genome_star2.7.1a |  | Not required | Configured | 
 mouse | RFX | 10xFXv2; 10xV3.1_FX; 10xV4_FX16; 10xV4_FX16-TK; 10xV4_FX4; 10xV4_FX4-TK; 10xV4_FX | mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0 | mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set | Required | Configured | 
+mouse | RFX | 10xV4_FX4-cps |  |  | Required | Missing reference mapping; Missing probe mapping | No reference for organism &#x27;mouse&#x27;, modality &#x27;RFX&#x27;, and library prep &#x27;10xV4_FX4-cps&#x27;<br>The alignment template requires {probe_set}, but no matching probe set exists.
 macaque; macaque_nemestrina; macaque-nemestrina; macaque_fascicularis; macaque-fascicularis | MTX | 10xMultX_GEX; 10xRSeq_Mult | macaque_ncbi_mmul10_genome_star2.7.1a |  | Not required | Configured | 
 macaque; macaque_nemestrina; macaque-nemestrina; macaque_fascicularis; macaque-fascicularis | RTX | 10xV3.1D; 10xRseq_Mult_noATAC; 10xV3.1_HT; 10Xv3.1; 10Xv3.1_LT; 10Xv3; 10Xv2; 10xV3.1_HT_CP; 10xV4_PX; 10xV4; 10xV4-TK | macaque_ncbi_mmul10_genome_star2.7.1a-1 |  | Not required | Configured | 
 african-green-monkey | MTX | 10xMultX_GEX; 10xRSeq_Mult | african-green-monkey_ncbi_vero-who-p1-0_genomefixed_star2.7.1a |  | Not required | Configured | 
