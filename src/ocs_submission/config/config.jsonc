@@ -37,7 +37,8 @@
           "10xV4_FX4": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0",
           "10xV4_FX4-TK": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0",
           "10xV4_FX": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0",
-          "10xV4_FX4-cps": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
+          "10xV4_FX4-cps": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0",
+          "10xFXv2-TK": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
         }
       }
     },
@@ -127,7 +128,8 @@
       "10xV4_FX4-TK": "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set",
       "10xV3.1_FX": "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set",
       "10xFXv2": "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set",
-      "10xV4_FX": "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set"
+      "10xV4_FX": "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set",
+      "10xFXv2-TK": "mouse_10x_grcm39-fx2v01_chromium_v2.0_cellflex_probe_set"
     },
     "human": "human_10x_grch38-2024-A_chromium_v2.0_cellflex_probe_set"
   },
@@ -515,6 +517,7 @@
           "match": {
             "library_preps": [
               "10xFXv2",
+              "10xFXv2-TK",
               "10xV3.1_FX",
               "10xV4_FX16",
               "10xV4_FX16-TK",
@@ -578,6 +581,7 @@
             "library_preps": [
               "10xV4_FX16",
               "10xV4_FX16-TK",
+              "10xFXv2-TK",
               "10xFXv2",
               "10xV3.1_FX",
               "10xV4_FX4",
