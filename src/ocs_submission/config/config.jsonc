@@ -36,7 +36,8 @@
           "10xV3.1_FX": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0",
           "10xV4_FX4": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0",
           "10xV4_FX4-TK": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0",
-          "10xV4_FX": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
+          "10xV4_FX": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0",
+          "10xV4_FX4-cps": "mouse_10x_grcm39-fx2v01_probe-genome_cr10.0.0"
         }
       }
     },
